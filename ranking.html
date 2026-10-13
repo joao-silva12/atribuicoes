@@ -76,10 +76,7 @@
         const TABLE_ID = '1004'; 
         const NOME_COLUNA_SETOR = 'Setores'; 
         const NOME_COLUNA_STATUS = 'Atividade completa'; 
-        const NOME_COLUNA_TIPO = 'Tipo'; // Coluna que define se é Setorial, Intersetorial, etc.
-
-        // Domínio base do Baserow extraído da URL do seu painel atual
-        const BASE_URL = 'https://baserow.app.ins'; 
+        const NOME_COLUNA_TIPO = 'Tipo'; 
 
         const urlParams = new URLSearchParams(window.location.search);
         let setorFiltro = urlParams.get('setor') || urlParams.get('id') || urlParams.get('nome');
@@ -90,7 +87,8 @@
 
         async function carregarRanking() {
             const container = document.getElementById('main-container');
-            const url = `${BASE_URL}/api/database/rows/table/${TABLE_ID}/?user_field_names=true&size=200`;
+            // Usa exatamente o mesmo caminho base que funcionou no gráfico de setores
+            const url = `http://baserow.app.local/api/database/rows/table/${TABLE_ID}/?user_field_names=true&size=200`;
 
             try {
                 const resposta = await fetch(url, {
@@ -99,7 +97,7 @@
                 });
                 
                 if (!resposta.ok) {
-                    throw new Error(`Erro HTTP: ${resposta.status} - Verifique o domínio ou o Token`);
+                    throw new Error(`Erro HTTP: ${resposta.status}`);
                 }
 
                 const dados = await resposta.json();
@@ -113,7 +111,7 @@
                 let setoresMap = {};
 
                 atividades.forEach((atividade) => {
-                    // 1. FILTRAR APENAS ATIVIDADES DO TIPO "Setorial"
+                    // Filtra estritamente apenas atividades do tipo "Setorial"
                     let campoTipo = atividade[NOME_COLUNA_TIPO];
                     let tipoValor = null;
                     if (typeof campoTipo === 'object' && campoTipo !== null) {
@@ -122,7 +120,6 @@
                         tipoValor = campoTipo;
                     }
 
-                    // Se não for setorial, ignora esta linha no ranking
                     if (!tipoValor || String(tipoValor).trim() !== 'Setorial') {
                         return;
                     }
@@ -155,7 +152,7 @@
 
                 rankingArray.sort((a, b) => b.percentagem - a.percentagem);
 
-                // CASO 1: Setor específico via URL (Mostra apenas a posição)
+                // CASO 1: Setor específico via URL (Mostra apenas a posição isolada)
                 if (setorFiltro) {
                     let index = rankingArray.findIndex(s => s.nome.toLowerCase() === setorFiltro.toLowerCase() || s.nome.toLowerCase().includes(setorFiltro.toLowerCase()));
                     let posicao = index !== -1 ? `${index + 1}º` : "Não classificado";
@@ -168,7 +165,7 @@
                         </div>
                     `;
                 } 
-                // CASO 2: Top 5 Geral (Dashboard)
+                // CASO 2: Dashboard Geral (Mostra o Top 5 em barras horizontais)
                 else {
                     let top5 = rankingArray.slice(0, 5);
                     
