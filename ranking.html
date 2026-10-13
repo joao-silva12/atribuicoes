@@ -80,7 +80,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            cursor: pointer; /* Muda o rato para a mãozinha ao passar por cima */
+            cursor: pointer;
         }
         
         /* A CAIXA FLUTUANTE (TOOLTIP) */
@@ -94,18 +94,17 @@
             padding: 8px 10px;
             position: absolute;
             z-index: 10;
-            bottom: 110%; /* Fica mesmo por cima da barra */
+            bottom: 110%;
             left: 50%;
-            margin-left: -80px; /* Centra a caixa */
+            margin-left: -80px;
             opacity: 0;
             transition: opacity 0.3s;
             font-size: 15px;
             font-weight: normal;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            pointer-events: none; /* Para não atrapalhar o clique/rato */
+            pointer-events: none;
         }
 
-        /* A SETINHA PARA BAIXO DO TOOLTIP */
         .funnel-bar .tooltip-texto::after {
             content: "";
             position: absolute;
@@ -117,7 +116,6 @@
             border-color: #2c3e50 transparent transparent transparent;
         }
 
-        /* EFEITO QUANDO PASSA O RATO */
         .funnel-bar:hover .tooltip-texto {
             visibility: visible;
             opacity: 1;
@@ -141,8 +139,8 @@
         const TOKEN = '7IIBS4AieOeEcmfWNF35znNX7wqR6O5d';
         const TABLE_ID = '1004';
         
-        // 👇 NÃO SE ESQUEÇA DE COLOCAR NOVAMENTE O NOME DA SUA COLUNA AQUI 👇
-        const COLUNA_NOME_SETOR = 'COLOQUE O NOME DA COLUNA AQUI'; 
+        // Nome exato da coluna atualizado conforme pedido:
+        const COLUNA_NOME_SETOR = 'setor-corespo'; 
 
         function extrairValor(val) {
             if (Array.isArray(val)) {
@@ -170,23 +168,114 @@
                 if (!resposta.ok) throw new Error(`Erro de Ligação: ${resposta.status}`);
 
                 const dados = await resposta.json();
-                const atividades = dados.results;
+                const atribuicoes = dados.results;
 
-                if (!atividades || atividades.length === 0) {
+                if (!atribuicoes || atribuicoes.length === 0) {
                     container.innerHTML = `Sem dados.`;
                     return;
                 }
 
                 let setoresMap = {};
 
-                atividades.forEach((atividade) => {
-                    if (!atividade) return;
+                atribuicoes.forEach((atribuicao) => {
+                    if (!atribuicao) return;
                     
-                    let chaves = Object.keys(atividade);
+                    let chaves = Object.keys(atribuicao);
                     let chaveCategoria = chaves.find(k => k.toLowerCase().includes('atividade setorial')) || 'Atividade Setorial';
                     let chaveStatus = chaves.find(k => k.toLowerCase().includes('completa')) || 'Atividade completa';
                     
                     let chaveSetor = chaves.find(k => k.toLowerCase() === COLUNA_NOME_SETOR.toLowerCase()) || COLUNA_NOME_SETOR;
 
-                    let ehSetorial = Number(extrairValor(atividade[chaveCategoria])) || 0;
-                    if (ehSetorial !== 1
+                    let ehSetorial = Number(extrairValor(atribuicao[chaveCategoria])) || 0;
+                    if (ehSetorial !== 1) return;
+
+                    let valSetor = atribuicao[chaveSetor];
+                    let nomeSetor = "Sem Setor";
+
+                    if (valSetor !== undefined && valSetor !== null) {
+                        if (Array.isArray(valSetor) && valSetor.length > 0) {
+                            nomeSetor = valSetor[0].value || valSetor[0].name || String(valSetor[0]);
+                        } else if (!Array.isArray(valSetor)) {
+                            nomeSetor = String(valSetor);
+                        }
+                    }
+
+                    if (nomeSetor === "Sem Setor" || nomeSetor === "0") {
+                        return;
+                    }
+
+                    if (!setoresMap[nomeSetor]) {
+                        setoresMap[nomeSetor] = { soma: 0, total: 0 };
+                    }
+
+                    let statusConclusao = Number(extrairValor(atribuicao[chaveStatus])) || 0;
+                    setoresMap[nomeSetor].soma += statusConclusao; 
+                    setoresMap[nomeSetor].total++; 
+                });
+
+                let rankingArray = Object.keys(setoresMap).map(nome => {
+                    let info = setoresMap[nome];
+                    let media = info.total > 0 ? (info.soma / info.total) * 100 : 0;
+                    return { 
+                        nome: nome, 
+                        percentagem: Math.round(media), 
+                        total: info.total,
+                        completas: info.soma 
+                    };
+                });
+
+                rankingArray.sort((a, b) => b.percentagem - a.percentagem);
+
+                if (rankingArray.length === 0) {
+                    container.innerHTML = `Nenhum setor encontrado com atribuições válidas.`;
+                    return;
+                }
+
+                let top5 = rankingArray.slice(0, 5);
+                let widths = [100, 85, 70, 55, 40]; 
+                
+                let html = `<div class="funnel-container">
+                              <div class="funnel-header">TOP 5 - RANKING DE PREENCHIMENTO SETORIAL</div>`;
+                
+                top5.forEach((item, index) => {
+                    let w = widths[index];
+                    let nextW = widths[index + 1] || (w - 15);
+                    
+                    let pTopLeft = 50 - (w / 2);
+                    let pTopRight = 50 + (w / 2);
+                    let pBotRight = 50 + (nextW / 2);
+                    let pBotLeft = 50 - (nextW / 2);
+                    
+                    let connectorHtml = '';
+                    if (index < top5.length - 1) { 
+                        connectorHtml = `<div class="funnel-connector" style="clip-path: polygon(${pTopLeft}% 0, ${pTopRight}% 0, ${pBotRight}% 100%, ${pBotLeft}% 100%); width: 100%;"></div>`;
+                    }
+
+                    html += `
+                    <div class="funnel-row">
+                        <div class="funnel-label-left">${item.nome}</div>
+                        <div class="funnel-center">
+                            <div class="funnel-bar" style="width: ${w}%;">
+                                ${item.percentagem}%
+                                <span class="tooltip-texto">Concluídas: ${item.completas}/${item.total}</span>
+                            </div>
+                            ${connectorHtml}
+                        </div>
+                        <div class="funnel-label-right">${item.total} atribuições</div>
+                    </div>
+                    `;
+                });
+
+                html += `</div>`;
+                
+                document.getElementById('conteudo').innerHTML = html;
+
+            } catch (erro) {
+                document.getElementById('conteudo').innerHTML = `<div style="color:red; font-size:16px;">Erro: ${erro.message}</div>`;
+            }
+        }
+
+        carregarRanking();
+    </script>
+</body>
+</html>
