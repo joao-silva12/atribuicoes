@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Posição do Setor</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 5px;
+            background-color: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .card-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 12px 20px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            box-sizing: border-box;
+        }
+        .card-left {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .setor-nome {
+            font-size: 15px;
+            font-weight: 800;
+            color: #333;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        .posicao-texto {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        .posicao-numero {
+            font-weight: bold;
+            color: #17B8A6;
+        }
+        .card-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        
+        /* BARRA COMPACTA COM TOOLTIP */
+        .mini-bar {
+            background-color: #17B8A6;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            text-align: center;
+            padding: 8px 15px;
+            border-radius: 4px;
+            position: relative;
+            cursor: pointer;
+            min-width: 60px;
+            box-shadow: inset 0px -2px 0px rgba(0,0,0,0.1);
+        }
+        
+        .mini-bar .tooltip-texto {
+            visibility: hidden;
+            width: 140px;
+            background-color: #2c3e50;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 6px 8px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -70px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 13px;
+            font-weight: normal;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            pointer-events: none;
+        }
+
+        .mini-bar .tooltip-texto::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #2c3e50 transparent transparent transparent;
+        }
+
+        .mini-bar:hover .tooltip-texto {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .total-atribuicoes {
+            font-size: 11px;
+            color: #95a5a6;
+            margin-top: 3px;
+        }
+
+        .aviso {
+            font-size: 13px;
+            color: #e74c3c;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="conteudo" style="width: 100%; display: flex; justify-content: center;">
+        <span style="font-size: 12px; color: #888;">A carregar setor...</span>
+    </div>
+
+    <script>
+        const TOKEN = '7IIBS4AieOeEcmfWNF35znNX7wqR6O5d';
+        const TABLE_ID = '1004';
+        const COLUNA_NOME_SETOR = 'setor-corespo'; 
+
+        const urlParams = new URLSearchParams(window.location.search);
+        let setorFiltro = urlParams.get('setor') || urlParams.get('id') || urlParams.get('nome');
+
+        if (!setorFiltro || setorFiltro.includes('{{') || setorFiltro.trim() === '') {
+            setorFiltro = null;
+        }
+
+        function extrairValor(val) {
+            if (Array.isArray(val)) {
+                if (val.length === 0) return 0;
+                return val[0].value !== undefined ? val[0].value : (val[0].name !== undefined ? val[0].name : val[0]);
+            }
+            if (val !== null && typeof val === 'object') {
+                return val.value !== undefined ? val.value : (val.name !== undefined ? val.name : 0);
+            }
+            return val;
+        }
+
+        async function carregarSetorIndividual() {
+            const container =ிட document.getElementById('conteudo');
+
+            if (!setorFiltro) {
+                container.innerHTML = `<span style="font-size: 12px; color: #aaa;">Nenhum setor selecionado.</span>`;
+                return;
+            }
+
+            try {
+                const url = `http://baserow.app.local/api/database/rows/table/${TABLE_ID}/?user_field_names=true&size=200`;
+                
+                const resposta = await fetch(url, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Token ${TOKEN}` }
+                });
+                
+                if (!resposta.ok) throw new Error(`Erro de Ligação: ${resposta.status}`);
+
+                const dados = await resposta.json();
+                const atribuicoes = dados.results;
+
+                if (!atribuicoes || atribuicoes.length === 0) {
+                    container.innerHTML = `<div class="aviso">Sem dados na tabela.</div>`;
+                    return;
+                }
+
+                let setoresMap = {};
+
+                atribuicoes.forEach((atribuicao) => {
+                    if (!atribuicao) return;
+                    
+                    let chaves = Object.keys(atribuicao);
+                    let chaveCategoria = chaves.find(k => k.toLowerCase().includes('atividade setorial')) || 'Atividade Setorial';
+                    let chaveStatus = chaves.find(k => k.toLowerCase().includes('completa')) || 'Atividade completa';
+                    let chaveSetor = chaves.find(k => k.toLowerCase() === COLUNA_NOME_SETOR.toLowerCase()) || COLUNA_NOME_SETOR;
+
+                    let ehSetorial = Number(extrairValor(atribuicao[chaveCategoria])) || 0;
+                    if (ehSetorial !== 1) return;
+
+                    let valSetor = atribuicao[chaveSetor];
+                    let nomeSetor = "Sem Setor";
+
+                    if (valSetor !== undefined && valSetor !== null) {
+                        if (Array.isArray(valSetor) && valSetor.length > 0) {
+                            nomeSetor = valSetor[0].value || valSetor[0].name || String(valSetor[0]);
+                        } else if (!Array.isArray(valSetor)) {
+                            nomeSetor = String(valSetor);
+                        }
+                    }
+
+                    if (nomeSetor === "Sem Setor" || nomeSetor === "0") return;
+
+                    if (!setoresMap[nomeSetor]) {
+                        setoresMap[nomeSetor] = { soma: 0, total: 0 };
+                    }
+
+                    let statusConclusao = Number(extrairValor(atribuicao[chaveStatus])) || 0;
+                    setoresMap[nomeSetor].soma += statusConclusao; 
+                    setoresMap[nomeSetor].total++; 
+                });
+
+                let rankingArray = Object.keys(setoresMap).map(nome => {
+                    let info = setoresMap[nome];
+                    let media = info.total > 0 ? (info.soma / info.total) * 100 : 0;
+                    return { 
+                        nome: nome, 
+                        percentagem: Math.round(media), 
+                        total: info.total,
+                        completas: info.soma 
+                    };
+                });
+
+                // Ordena do maior para o menor para descobrir a posição real no ranking geral
+                rankingArray.sort((a, b) => b.percentagem - a.percentagem);
+
+                // Procura o setor que veio no parâmetro da URL
+                let index = rankingArray.findIndex(s => s.nome.toLowerCase() === setorFiltro.toLowerCase() || s.nome.toLowerCase().includes(setorFiltro.toLowerCase()));
+                
+                if (index === -1) {
+                    container.innerHTML = `<div class="aviso">Setor "${setorFiltro}" não encontrado no ranking.</div>`;
+                    return;
+                }
+
+                let setorInfo = rankingArray[index];
+                let posicaoOrdinal = `${index + 1}º`;
+
+                container.innerHTML = `
+                    <div class="card-container">
+                        <div class="card-left">
+                            <div class="setor-nome">${setorInfo.nome}</div>
+                            <div class="posicao-texto">Posição no ranking: <span class="posicao-numero">${posicaoOrdinal}</span></div>
+                        </div>
+                        <div class="card-right">
+                            <div class="mini-bar">
+                                ${setorInfo.percentagem}%
+                                <span class="tooltip-texto">Concluídas: ${setorInfo.completas}/${setorInfo.total}</span>
+                            </div>
+                            <div class="total-atribuicoes">${setorInfo.total} atribuições</div>
+                        </div>
+                    </div>
+                `;
+
+            } catch (erro) {
+                container.innerHTML = `<div class="aviso">Erro: ${erro.message}</div>`;
+            }
+        }
+
+        carregarSetorIndividual();
+    </script>
+</body>
+</html>
