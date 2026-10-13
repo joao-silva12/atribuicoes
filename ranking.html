@@ -4,34 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ranking de Preenchimento</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { 
-            font-family: Arial, sans-serif; 
+            font-family: 'Segoe UI', Arial, sans-serif; 
             margin: 0; 
-            padding: 5px; 
-            background-color: #ffffff; 
+            padding: 10px; 
+            background-color: transparent; 
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             box-sizing: border-box;
         }
         .container {
             width: 100%;
-            max-width: 450px;
+            max-width: 650px;
             text-align: center;
-        }
-        #aviso-box {
-            font-size: 12px;
-            color: #856404;
-            background: #fff3cd;
-            border: 1px solid #ffeeba;
-            padding: 10px;
-            border-radius: 6px;
-            text-align: left;
-            line-height: 1.4;
-            word-wrap: break-word;
         }
         #posicao-box {
             background: #f8f9fa;
@@ -39,6 +27,9 @@
             border-radius: 8px;
             padding: 15px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
         }
         .setor-nome {
             font-size: 16px;
@@ -54,22 +45,66 @@
         .posicao-numero {
             font-size: 20px;
             font-weight: bold;
-            color: #4f46e5;
+            color: #17B8A6;
         }
-        .chart-container {
-            position: relative;
+        
+        /* ESTILOS EXATOS DO FUNIL (IGUAL À IMAGEM) */
+        .funnel-title {
+            color: #555;
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .funnel-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
             width: 100%;
-            max-height: 270px;
         }
-        canvas {
-            max-height: 240px !important;
+        .funnel-left {
+            flex: 1;
+            text-align: right;
+            padding-right: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 16px;
+            text-transform: uppercase;
+        }
+        .funnel-center {
+            width: 280px; /* Largura base do topo do funil */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .funnel-right {
+            flex: 1;
+            text-align: left;
+            padding-left: 20px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .funnel-block {
+            background-color: #17B8A6; /* Verde Teal da imagem */
+            color: white;
+            text-align: center;
+            font-size: 26px;
+            font-weight: bold;
+            padding: 15px 0;
+            box-shadow: inset 0px -4px 0px rgba(0,0,0,0.08); /* Efeito de sombra interna no bloco */
+        }
+        .funnel-connector {
+            width: 100%;
+            height: 35px; /* Altura da ligação 3D */
+            background-color: #A3E4D7; /* Verde clarinho 3D */
         }
     </style>
 </head>
 <body>
 
     <div class="container" id="main-container">
-        <div id="conteudo">A carregar dados...</div>
+        <div id="conteudo" style="color: #666; font-size: 14px;">A carregar ranking de preenchimento...</div>
     </div>
 
     <script>
@@ -83,7 +118,7 @@
             setorFiltro = null;
         }
 
-        // Função universal para extrair valores, independentemente do formato da API
+        // Função de extração que funcionou perfeitamente no seu teste
         function extrairValor(val) {
             if (Array.isArray(val)) {
                 if (val.length === 0) return 0;
@@ -105,15 +140,13 @@
                     headers: { 'Authorization': `Token ${TOKEN}` }
                 });
                 
-                if (!resposta.ok) {
-                    throw new Error(`Erro HTTP: ${resposta.status}`);
-                }
+                if (!resposta.ok) throw new Error(`Erro HTTP: ${resposta.status}`);
 
                 const dados = await resposta.json();
                 const atividades = dados.results;
 
                 if (!atividades || atividades.length === 0) {
-                    container.innerHTML = `<div id="aviso-box">Aviso: A tabela retornou 0 registos.</div>`;
+                    container.innerHTML = `<div>Sem dados para apresentar.</div>`;
                     return;
                 }
 
@@ -122,25 +155,18 @@
                 atividades.forEach((atividade) => {
                     let chaves = Object.keys(atividade);
                     
-                    // Encontra as colunas ignorando diferenças de maiúsculas/minúsculas
                     let chaveCategoria = chaves.find(k => k.toLowerCase().includes('atividade setorial')) || 'Atividade Setorial';
                     let chaveStatus = chaves.find(k => k.toLowerCase().includes('completa')) || 'Atividade completa';
                     let chaveSetor = chaves.find(k => k.toLowerCase().includes('setores') || k.toLowerCase() === 'setor') || 'Setores';
 
-                    // Extrai o valor da fórmula (1 ou 0)
                     let ehSetorial = Number(extrairValor(atividade[chaveCategoria])) || 0;
-                    
-                    // Se não for atividade setorial, ignora
-                    if (ehSetorial !== 1) {
-                        return; 
-                    }
+                    if (ehSetorial !== 1) return; 
 
                     let valSetor = atividade[chaveSetor];
                     let nomeSetor = "Sem Setor";
 
                     if (Array.isArray(valSetor) && valSetor.length > 0) {
-                        let s = valSetor[0];
-                        nomeSetor = (typeof s === 'object' && s !== null) ? (s.value || s.name || "Desconhecido") : String(s);
+                        nomeSetor = valSetor[0].value || valSetor[0].name || String(valSetor[0]);
                     } else if (valSetor) {
                         nomeSetor = String(valSetor);
                     }
@@ -149,7 +175,6 @@
                         setoresMap[nomeSetor] = { soma: 0, total: 0 };
                     }
 
-                    // Extrai o status de preenchimento (1 ou 0)
                     let statusConclusao = Number(extrairValor(atividade[chaveStatus])) || 0;
                     
                     setoresMap[nomeSetor].soma += statusConclusao;
@@ -158,90 +183,4 @@
 
                 let rankingArray = Object.keys(setoresMap).map(nome => {
                     let info = setoresMap[nome];
-                    let media = info.total > 0 ? (info.soma / info.total) * 100 : 0;
-                    return { nome: nome, percentagem: parseFloat(media.toFixed(1)) };
-                });
-
-                rankingArray.sort((a, b) => b.percentagem - a.percentagem);
-
-                // CASO 1: Setor específico via URL
-                if (setorFiltro) {
-                    let index = rankingArray.findIndex(s => s.nome.toLowerCase() === setorFiltro.toLowerCase() || s.nome.toLowerCase().includes(setorFiltro.toLowerCase()));
-                    let posicao = index !== -1 ? `${index + 1}º` : "Não classificado";
-                    let nomeExibicao = index !== -1 ? rankingArray[index].nome : setorFiltro;
-
-                    container.innerHTML = `
-                        <div id="posicao-box">
-                            <div class="setor-nome">${nomeExibicao}</div>
-                            <div class="posicao-texto">Posição no ranking de preenchimento: <span class="posicao-numero">${posicao}</span></div>
-                        </div>
-                    `;
-                } 
-                // CASO 2: Dashboard Geral
-                else {
-                    if (rankingArray.length === 0) {
-                        let colunasDisponiveis = Object.keys(atividades[0]).join(', ');
-                        container.innerHTML = `
-                            <div id="aviso-box">
-                                <b>Modo Diagnóstico:</b><br>
-                                Nenhuma atividade foi reconhecida como setorial (valor 1).<br><br>
-                                <i>Colunas lidas da API:</i><br>${colunasDisponiveis}
-                            </div>
-                        `;
-                        return;
-                    }
-
-                    let top5 = rankingArray.slice(0, 5);
-                    
-                    container.innerHTML = `
-                        <div class="chart-container">
-                            <canvas id="rankingChart"></canvas>
-                        </div>
-                    `;
-
-                    const ctx = document.getElementById('rankingChart').getContext('2d');
-                    new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: top5.map(s => s.nome),
-                            datasets: [{
-                                label: 'Preenchimento Setorial (%)',
-                                data: top5.map(s => s.percentagem),
-                                backgroundColor: 'rgba(79, 70, 229, 0.7)',
-                                borderColor: 'rgba(79, 70, 229, 1)',
-                                borderWidth: 1,
-                                borderRadius: 4
-                            }]
-                        },
-                        options: {
-                            indexAxis: 'y',
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: false },
-                                title: { 
-                                    display: true, 
-                                    text: 'Top 5 - Ranking de Preenchimento Setorial',
-                                    font: { size: 13 }
-                                }
-                            },
-                            scales: {
-                                x: {
-                                    beginAtZero: true,
-                                    max: 100
-                                }
-                            }
-                        }
-                    });
-                }
-
-            } catch (erro) {
-                console.error("Erro no script:", erro);
-                container.innerHTML = `<div id="aviso-box"><b>Erro:</b> ${erro.message}</div>`;
-            }
-        }
-
-        carregarRanking();
-    </script>
-</body>
-</html>
+                    let media = info.total > 0 ? (info.soma / info.total) *
