@@ -9,7 +9,7 @@
         body { 
             font-family: Arial, sans-serif; 
             margin: 0; 
-            padding: 10px; 
+            padding: 5px; 
             background-color: #ffffff; 
             display: flex;
             justify-content: center;
@@ -22,6 +22,16 @@
             max-width: 450px;
             text-align: center;
         }
+        #erro-box {
+            font-size: 11px;
+            color: #d9534f;
+            background: #fdf7f7;
+            border: 1px solid #ebccd1;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            text-align: left;
+        }
         #posicao-box {
             background: #f8f9fa;
             border: 1px solid #e9ecef;
@@ -30,42 +40,46 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         .setor-nome {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             color: #333;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             text-transform: uppercase;
         }
         .posicao-texto {
-            font-size: 14px;
+            font-size: 13px;
             color: #555;
         }
         .posicao-numero {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: bold;
             color: #4f46e5;
         }
         .chart-container {
             position: relative;
             width: 100%;
-            max-height: 280px;
+            max-height: 270px;
         }
         canvas {
-            max-height: 250px !important;
+            max-height: 240px !important;
         }
     </style>
 </head>
 <body>
 
     <div class="container" id="main-container">
-        <div id="conteudo">A carregar ranking...</div>
+        <div id="conteudo">A carregar dados do ranking...</div>
     </div>
 
     <script>
         const TOKEN = '7IIBS4AieOeEcmfWNF35znNX7wqR6O5d'; 
         const TABLE_ID = '1004'; 
         const NOME_COLUNA_SETOR = 'Setores'; 
-        const NOME_COLUNA_STATUS = 'Atividade completa'; // Ajuste aqui se o nome exato da coluna na tabela for ligeiramente diferente
+        const NOME_COLUNA_STATUS = 'Atividade completa'; 
+        const NOME_COLUNA_TIPO = 'Tipo'; // Coluna que define se é Setorial, Intersetorial, etc.
+
+        // Domínio base do Baserow extraído da URL do seu painel atual
+        const BASE_URL = 'https://baserow.app.ins'; 
 
         const urlParams = new URLSearchParams(window.location.search);
         let setorFiltro = urlParams.get('setor') || urlParams.get('id') || urlParams.get('nome');
@@ -75,7 +89,8 @@
         }
 
         async function carregarRanking() {
-            const url = `http://baserow.app.local/api/database/rows/table/${TABLE_ID}/?user_field_names=true&size=200`;
+            const container = document.getElementById('main-container');
+            const url = `${BASE_URL}/api/database/rows/table/${TABLE_ID}/?user_field_names=true&size=200`;
 
             try {
                 const resposta = await fetch(url, {
@@ -83,12 +98,35 @@
                     headers: { 'Authorization': `Token ${TOKEN}` }
                 });
                 
+                if (!resposta.ok) {
+                    throw new Error(`Erro HTTP: ${resposta.status} - Verifique o domínio ou o Token`);
+                }
+
                 const dados = await resposta.json();
                 const atividades = dados.results;
+
+                if (!atividades || atividades.length === 0) {
+                    container.innerHTML = `<div id="erro-box">Aviso: A tabela 1004 retornou 0 registos.</div>`;
+                    return;
+                }
 
                 let setoresMap = {};
 
                 atividades.forEach((atividade) => {
+                    // 1. FILTRAR APENAS ATIVIDADES DO TIPO "Setorial"
+                    let campoTipo = atividade[NOME_COLUNA_TIPO];
+                    let tipoValor = null;
+                    if (typeof campoTipo === 'object' && campoTipo !== null) {
+                        tipoValor = campoTipo.value || campoTipo.name;
+                    } else {
+                        tipoValor = campoTipo;
+                    }
+
+                    // Se não for setorial, ignora esta linha no ranking
+                    if (!tipoValor || String(tipoValor).trim() !== 'Setorial') {
+                        return;
+                    }
+
                     let setorAtividade = atividade[NOME_COLUNA_SETOR];
                     let nomeSetor = "Sem Setor";
 
@@ -103,26 +141,21 @@
                         setoresMap[nomeSetor] = { soma: 0, total: 0 };
                     }
 
-                    // Pega o valor 1 ou 0 da coluna de conclusão
                     let statusConclusao = Number(atividade[NOME_COLUNA_STATUS]) || 0;
                     
                     setoresMap[nomeSetor].soma += statusConclusao;
                     setoresMap[nomeSetor].total++;
                 });
 
-                // Calcula a média em percentagem para cada setor (igual ao rollup do Baserow)
                 let rankingArray = Object.keys(setoresMap).map(nome => {
                     let info = setoresMap[nome];
                     let media = info.total > 0 ? (info.soma / info.total) * 100 : 0;
                     return { nome: nome, percentagem: parseFloat(media.toFixed(1)) };
                 });
 
-                // Ordena do maior para o menor preenchimento
                 rankingArray.sort((a, b) => b.percentagem - a.percentagem);
 
-                const container = document.getElementById('main-container');
-
-                // CASO 1: Página de detalhes do setor (com parâmetro na URL) -> Mostra a posição no ranking
+                // CASO 1: Setor específico via URL (Mostra apenas a posição)
                 if (setorFiltro) {
                     let index = rankingArray.findIndex(s => s.nome.toLowerCase() === setorFiltro.toLowerCase() || s.nome.toLowerCase().includes(setorFiltro.toLowerCase()));
                     let posicao = index !== -1 ? `${index + 1}º` : "Não classificado";
@@ -135,7 +168,7 @@
                         </div>
                     `;
                 } 
-                // CASO 2: Página principal (sem parâmetro) -> Mostra o Top 5 em gráfico de barras
+                // CASO 2: Top 5 Geral (Dashboard)
                 else {
                     let top5 = rankingArray.slice(0, 5);
                     
@@ -151,7 +184,7 @@
                         data: {
                             labels: top5.map(s => s.nome),
                             datasets: [{
-                                label: 'Preenchimento (%)',
+                                label: 'Preenchimento Setorial (%)',
                                 data: top5.map(s => s.percentagem),
                                 backgroundColor: 'rgba(79, 70, 229, 0.7)',
                                 borderColor: 'rgba(79, 70, 229, 1)',
@@ -167,8 +200,8 @@
                                 legend: { display: false },
                                 title: { 
                                     display: true, 
-                                    text: 'Top 5 - Ranking de Preenchimento',
-                                    font: { size: 14 }
+                                    text: 'Top 5 - Ranking de Preenchimento Setorial',
+                                    font: { size: 13 }
                                 }
                             },
                             scales: {
@@ -182,8 +215,8 @@
                 }
 
             } catch (erro) {
-                console.error("Erro ao carregar ranking:", erro);
-                document.getElementById('main-container').innerText = "Erro ao carregar dados do ranking.";
+                console.error("Erro no script:", erro);
+                container.innerHTML = `<div id="erro-box"><b>Erro de Ligação:</b><br>${erro.message}</div>`;
             }
         }
 
