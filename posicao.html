@@ -106,6 +106,19 @@
             color: #95a5a6;
             margin-top: 3px;
         }
+        .aviso-vazio {
+            font-size: 13px;
+            color: #7f8c8d;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 12px 20px;
+            border-radius: 8px;
+            text-align: center;
+            width: 100%;
+            max-width: 450px;
+            font-weight: bold;
+            box-sizing: border-box;
+        }
     </style>
 </head>
 <body>
@@ -122,6 +135,8 @@
 
         if (!setorFiltro || setorFiltro.includes('{{') || setorFiltro.trim() === '') {
             setorFiltro = null;
+        } else {
+            setorFiltro = setorFiltro.trim().toLowerCase();
         }
 
         function extrairValor(val) {
@@ -160,6 +175,7 @@
 
                 let setoresMap = {};
 
+                // Processar apenas as atribuições setoriais válidas
                 atribuicoes.forEach((atribuicao) => {
                     if (!atribuicao) return;
                     
@@ -177,10 +193,10 @@
 
                     if (valSetor !== undefined && valSetor !== null) {
                         if (Array.isArray(valSetor) && valSetor.length > 0) {
-                            nomeSetor = valSetor[0].value || valSetor[0].name || String(valSetor[0]);
+                            nomeSetor = String(valSetor[0].value || valSetor[0].name || valSetor[0]);
                             idSetor = valSetor[0].id !== undefined ? String(valSetor[0].id) : null;
                         } else if (typeof valSetor === 'object') {
-                            nomeSetor = valSetor.value || valSetor.name || String(valSetor);
+                            nomeSetor = String(valSetor.value || valSetor.name || valSetor);
                             idSetor = valSetor.id !== undefined ? String(valSetor.id) : null;
                         } else {
                             nomeSetor = String(valSetor);
@@ -189,7 +205,6 @@
 
                     if (nomeSetor === "Sem Setor" || nomeSetor === "0") return;
 
-                    // Se a coluna de ligação também devolver o ID bruto, guardamo-lo
                     let rawSetorCol = atribuicao['Setores'] || atribuicao['setor'];
                     let brutoId = Array.isArray(rawSetorCol) && rawSetorCol.length > 0 ? String(rawSetorCol[0].id || rawSetorCol[0]) : String(rawSetorCol || '');
 
@@ -207,7 +222,8 @@
                     let media = info.total > 0 ? (info.soma / info.total) * 100 : 0;
                     return { 
                         nome: nome, 
-                        id: info.id,
+                        nomeLower: nome.toLowerCase(),
+                        id: info.id ? String(info.id).toLowerCase() : '',
                         percentagem: Math.round(media), 
                         total: info.total,
                         completas: info.soma 
@@ -216,15 +232,16 @@
 
                 rankingArray.sort((a, b) => b.percentagem - a.percentagem);
 
-                // Procura comparando quer pelo Nome, quer pelo ID numérico recebido na URL
+                // Procura tanto por nome exato/parcial quanto por ID numérico
                 let index = rankingArray.findIndex(s => 
-                    s.nome.toLowerCase() === setorFiltro.toLowerCase() || 
-                    s.nome.toLowerCase().includes(setorFiltro.toLowerCase()) ||
-                    (s.id && s.id === setorFiltro)
+                    s.nomeLower === setorFiltro || 
+                    s.nomeLower.includes(setorFiltro) || 
+                    s.id === setorFiltro
                 );
                 
                 if (index === -1) {
-                    container.innerHTML = '';
+                    // Se o setor não tem atribuições cadastradas, exibe a mensagem informativa correta
+                    container.innerHTML = `<div class="aviso-vazio">Sem atribuições cadastradas para o setor</div>`;
                     return;
                 }
 
