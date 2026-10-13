@@ -8,7 +8,7 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 5px;
+            padding: 0;
             background-color: transparent;
             display: flex;
             justify-content: center;
@@ -54,8 +54,6 @@
             flex-direction: column;
             align-items: flex-end;
         }
-        
-        /* BARRA COMPACTA COM TOOLTIP */
         .mini-bar {
             background-color: #17B8A6;
             color: white;
@@ -69,10 +67,9 @@
             min-width: 60px;
             box-shadow: inset 0px -2px 0px rgba(0,0,0,0.1);
         }
-        
         .mini-bar .tooltip-texto {
             visibility: hidden;
-            width: 140px;
+            width: 160px;
             background-color: #2c3e50;
             color: #fff;
             text-align: center;
@@ -82,7 +79,7 @@
             z-index: 10;
             bottom: 125%;
             left: 50%;
-            margin-left: -70px;
+            margin-left: -80px;
             opacity: 0;
             transition: opacity 0.3s;
             font-size: 13px;
@@ -90,7 +87,6 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             pointer-events: none;
         }
-
         .mini-bar .tooltip-texto::after {
             content: "";
             position: absolute;
@@ -101,31 +97,20 @@
             border-style: solid;
             border-color: #2c3e50 transparent transparent transparent;
         }
-
         .mini-bar:hover .tooltip-texto {
             visibility: visible;
             opacity: 1;
         }
-
         .total-atribuicoes {
             font-size: 11px;
             color: #95a5a6;
             margin-top: 3px;
         }
-
-        .aviso {
-            font-size: 13px;
-            color: #e74c3c;
-            text-align: center;
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
 
-    <div id="conteudo" style="width: 100%; display: flex; justify-content: center;">
-        <span style="font-size: 12px; color: #888;">A carregar setor...</span>
-    </div>
+    <div id="conteudo" style="width: 100%; display: flex; justify-content: center;"></div>
 
     <script>
         const TOKEN = '7IIBS4AieOeEcmfWNF35znNX7wqR6O5d';
@@ -151,10 +136,10 @@
         }
 
         async function carregarSetorIndividual() {
-            const container =ிட document.getElementById('conteudo');
+            const container = document.getElementById('conteudo');
 
             if (!setorFiltro) {
-                container.innerHTML = `<span style="font-size: 12px; color: #aaa;">Nenhum setor selecionado.</span>`;
+                container.innerHTML = '';
                 return;
             }
 
@@ -171,10 +156,7 @@
                 const dados = await resposta.json();
                 const atribuicoes = dados.results;
 
-                if (!atribuicoes || atribuicoes.length === 0) {
-                    container.innerHTML = `<div class="aviso">Sem dados na tabela.</div>`;
-                    return;
-                }
+                if (!atribuicoes || atribuicoes.length === 0) return;
 
                 let setoresMap = {};
 
@@ -222,14 +204,12 @@
                     };
                 });
 
-                // Ordena do maior para o menor para descobrir a posição real no ranking geral
                 rankingArray.sort((a, b) => b.percentagem - a.percentagem);
 
-                // Procura o setor que veio no parâmetro da URL
                 let index = rankingArray.findIndex(s => s.nome.toLowerCase() === setorFiltro.toLowerCase() || s.nome.toLowerCase().includes(setorFiltro.toLowerCase()));
                 
                 if (index === -1) {
-                    container.innerHTML = `<div class="aviso">Setor "${setorFiltro}" não encontrado no ranking.</div>`;
+                    container.innerHTML = '';
                     return;
                 }
 
@@ -253,7 +233,7 @@
                 `;
 
             } catch (erro) {
-                container.innerHTML = `<div class="aviso">Erro: ${erro.message}</div>`;
+                container.innerHTML = '';
             }
         }
 
