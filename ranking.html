@@ -48,7 +48,6 @@
             color: #17B8A6;
         }
         
-        /* ESTILOS EXATOS DO FUNIL (IGUAL À IMAGEM) */
         .funnel-title {
             color: #555;
             font-size: 22px;
@@ -73,7 +72,7 @@
             text-transform: uppercase;
         }
         .funnel-center {
-            width: 280px; /* Largura base do topo do funil */
+            width: 280px; 
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -86,39 +85,50 @@
             font-size: 14px;
         }
         .funnel-block {
-            background-color: #17B8A6; /* Verde Teal da imagem */
+            background-color: #17B8A6; 
             color: white;
             text-align: center;
             font-size: 26px;
             font-weight: bold;
             padding: 15px 0;
-            box-shadow: inset 0px -4px 0px rgba(0,0,0,0.08); /* Efeito de sombra interna no bloco */
+            box-shadow: inset 0px -4px 0px rgba(0,0,0,0.08); 
         }
         .funnel-connector {
             width: 100%;
-            height: 35px; /* Altura da ligação 3D */
-            background-color: #A3E4D7; /* Verde clarinho 3D */
+            height: 35px; 
+            background-color: #A3E4D7; 
         }
     </style>
 </head>
 <body>
 
     <div class="container" id="main-container">
-        <div id="conteudo" style="color: #666; font-size: 14px;">A carregar ranking de preenchimento...</div>
+        <div id="conteudo" style="color: #666; font-size: 14px; padding: 20px;">
+            <div style="font-weight:bold; margin-bottom: 5px;">A iniciar o ranking de preenchimento...</div>
+            <div id="status-texto" style="font-size:12px; color:#17B8A6;">A carregar script...</div>
+        </div>
     </div>
 
     <script>
+        // Atualiza a frase no ecrã para sabermos onde o script está
+        function atualizarStatus(texto) {
+            const el = document.getElementById('status-texto');
+            if (el) el.innerText = texto;
+        }
+
         const TOKEN = '7IIBS4AieOeEcmfWNF35znNX7wqR6O5d'; 
         const TABLE_ID = '1004'; 
 
         const urlParams = new URLSearchParams(window.location.search);
         let setorFiltro = urlParams.get('setor') || urlParams.get('id') || urlParams.get('nome');
 
-        if (!setorFiltro || setorFiltro.includes('{{') || setorFiltro.trim() === '') {
-            setorFiltro = null;
+        // Código robusto para evitar falhas com a variável do URL
+        if (setorFiltro) {
+            if (setorFiltro.includes('{{') || setorFiltro.trim() === '') {
+                setorFiltro = null;
+            }
         }
 
-        // Função de extração que funcionou perfeitamente no seu teste
         function extrairValor(val) {
             if (Array.isArray(val)) {
                 if (val.length === 0) return 0;
@@ -135,24 +145,30 @@
             const url = `http://baserow.app.local/api/database/rows/table/${TABLE_ID}/?user_field_names=true&size=200`;
 
             try {
+                atualizarStatus('A estabelecer ligação ao Baserow...');
+                
                 const resposta = await fetch(url, {
                     method: 'GET',
                     headers: { 'Authorization': `Token ${TOKEN}` }
                 });
                 
-                if (!resposta.ok) throw new Error(`Erro HTTP: ${resposta.status}`);
+                if (!resposta.ok) throw new Error(`Erro de Ligação à API: ${resposta.status}`);
 
+                atualizarStatus('A transferir dados...');
                 const dados = await resposta.json();
                 const atividades = dados.results;
 
                 if (!atividades || atividades.length === 0) {
-                    container.innerHTML = `<div>Sem dados para apresentar.</div>`;
+                    container.innerHTML = `<div>Sem atividades na tabela.</div>`;
                     return;
                 }
 
+                atualizarStatus('A calcular médias setoriais...');
                 let setoresMap = {};
 
                 atividades.forEach((atividade) => {
+                    if (!atividade) return; // Evita falhas se a linha estiver vazia
+                    
                     let chaves = Object.keys(atividade);
                     
                     let chaveCategoria = chaves.find(k => k.toLowerCase().includes('atividade setorial')) || 'Atividade Setorial';
@@ -183,4 +199,72 @@
 
                 let rankingArray = Object.keys(setoresMap).map(nome => {
                     let info = setoresMap[nome];
-                    let media = info.total > 0 ? (info.soma / info.total) *
+                    let media = info.total > 0 ? (info.soma / info.total) * 100 : 0;
+                    return { nome: nome, percentagem: parseFloat(media.toFixed(1)), total: info.total };
+                });
+
+                rankingArray.sort((a, b) => b.percentagem - a.percentagem);
+
+                atualizarStatus('A desenhar o funil tridimensional...');
+
+                if (setorFiltro) {
+                    let index = rankingArray.findIndex(s => s.nome.toLowerCase() === setorFiltro.toLowerCase() || s.nome.toLowerCase().includes(setorFiltro.toLowerCase()));
+                    let posicao = index !== -1 ? `${index + 1}º` : "-";
+                    let nomeExibicao = index !== -1 ? rankingArray[index].nome : setorFiltro;
+
+                    container.innerHTML = `
+                        <div id="posicao-box">
+                            <div class="setor-nome">${nomeExibicao}</div>
+                            <div class="posicao-texto">Posição no ranking: <span class="posicao-numero">${posicao}</span></div>
+                        </div>
+                    `;
+                } else {
+                    if (rankingArray.length === 0) {
+                        container.innerHTML = `<div style="color: #e74c3c; font-weight: bold; padding:20px; background:#fadbd8; border-radius:8px;">Nenhuma atividade do tipo 'Setorial' foi encontrada para desenhar o funil.</div>`;
+                        return;
+                    }
+
+                    let top5 = rankingArray.slice(0, 5);
+                    let widths = [100, 85, 70, 55, 40]; 
+                    
+                    let html = `<div class="funnel-title">TOP 5 - RANKING DE PREENCHIMENTO SETORIAL</div>`;
+                    
+                    top5.forEach((item, index) => {
+                        let w = widths[index];
+                        let nextW = widths[index + 1] || (w - 15);
+                        
+                        let pTopLeft = 50 - (w / 2);
+                        let pTopRight = 50 + (w / 2);
+                        let pBotRight = 50 + (nextW / 2);
+                        let pBotLeft = 50 - (nextW / 2);
+                        
+                        let connectorHtml = '';
+                        if (index < top5.length - 1) { 
+                            connectorHtml = `<div class="funnel-connector" style="clip-path: polygon(${pTopLeft}% 0, ${pTopRight}% 0, ${pBotRight}% 100%, ${pBotLeft}% 100%);"></div>`;
+                        }
+
+                        html += `
+                        <div class="funnel-row">
+                            <div class="funnel-left">${item.nome}</div>
+                            <div class="funnel-center">
+                                <div class="funnel-block" style="width: ${w}%;">
+                                    ${item.percentagem}%
+                                </div>
+                                ${connectorHtml}
+                            </div>
+                            <div class="funnel-right">${item.total} atividades</div>
+                        </div>
+                        `;
+                    });
+
+                    container.innerHTML = html;
+                }
+            } catch (erro) {
+                document.getElementById('main-container').innerHTML = `<div style="color:#e74c3c; font-size:14px; font-weight:bold; padding:20px; background:#fadbd8; border-radius:8px;">Erro crítico: ${erro.message}</div>`;
+            }
+        }
+
+        carregarRanking();
+    </script>
+</body>
+</html>
