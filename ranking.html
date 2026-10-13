@@ -76,7 +76,9 @@
         const TABLE_ID = '1004'; 
         const NOME_COLUNA_SETOR = 'Setores'; 
         const NOME_COLUNA_STATUS = 'Atividade completa'; 
-        const NOME_COLUNA_TIPO = 'Tipo'; 
+        
+        // Nome exato da coluna que identifica as atividades setoriais na sua tabela
+        const NOME_COLUNA_CATEGORIA = 'Atividades setoriais'; // Mude para 'Atividades grupos' quando fizer a página dos grupos
 
         const urlParams = new URLSearchParams(window.location.search);
         let setorFiltro = urlParams.get('setor') || urlParams.get('id') || urlParams.get('nome');
@@ -87,7 +89,6 @@
 
         async function carregarRanking() {
             const container = document.getElementById('main-container');
-            // Usa exatamente o mesmo caminho base que funcionou no gráfico de setores
             const url = `http://baserow.app.local/api/database/rows/table/${TABLE_ID}/?user_field_names=true&size=200`;
 
             try {
@@ -111,19 +112,22 @@
                 let setoresMap = {};
 
                 atividades.forEach((atividade) => {
-                    // Filtra estritamente apenas atividades do tipo "Setorial"
-                    let campoTipo = atividade[NOME_COLUNA_TIPO];
-                    let tipoValor = null;
-                    if (typeof campoTipo === 'object' && campoTipo !== null) {
-                        tipoValor = campoTipo.value || campoTipo.name;
-                    } else {
-                        tipoValor = campoTipo;
+                    // Verifica se a atividade pertence à categoria desejada (ex: tem valor preenchido na coluna setorial)
+                    let valorCategoria = atividade[NOME_COLUNA_CATEGORIA];
+                    let pertenceCategoria = false;
+
+                    if (Array.isArray(valorCategoria)) {
+                        pertenceCategoria = valorCategoria.length > 0;
+                    } else if (valorCategoria !== null && valorCategoria !== undefined && valorCategoria !== '' && valorCategoria !== 0) {
+                        pertenceCategoria = true;
                     }
 
-                    if (!tipoValor || String(tipoValor).trim() !== 'Setorial') {
+                    // Se não pertencer à categoria setorial, ignora
+                    if (!pertenceCategoria) {
                         return;
                     }
 
+                    // Identifica o setor da atividade
                     let setorAtividade = atividade[NOME_COLUNA_SETOR];
                     let nomeSetor = "Sem Setor";
 
@@ -138,6 +142,7 @@
                         setoresMap[nomeSetor] = { soma: 0, total: 0 };
                     }
 
+                    // Lê o valor 1 ou 0 da coluna "Atividade completa"
                     let statusConclusao = Number(atividade[NOME_COLUNA_STATUS]) || 0;
                     
                     setoresMap[nomeSetor].soma += statusConclusao;
@@ -152,7 +157,7 @@
 
                 rankingArray.sort((a, b) => b.percentagem - a.percentagem);
 
-                // CASO 1: Setor específico via URL (Mostra apenas a posição isolada)
+                // CASO 1: Página de detalhes (mostra a posição isolada do setor)
                 if (setorFiltro) {
                     let index = rankingArray.findIndex(s => s.nome.toLowerCase() === setorFiltro.toLowerCase() || s.nome.toLowerCase().includes(setorFiltro.toLowerCase()));
                     let posicao = index !== -1 ? `${index + 1}º` : "Não classificado";
@@ -165,7 +170,7 @@
                         </div>
                     `;
                 } 
-                // CASO 2: Dashboard Geral (Mostra o Top 5 em barras horizontais)
+                // CASO 2: Dashboard Geral (mostra o Top 5)
                 else {
                     let top5 = rankingArray.slice(0, 5);
                     
@@ -181,7 +186,7 @@
                         data: {
                             labels: top5.map(s => s.nome),
                             datasets: [{
-                                label: 'Preenchimento Setorial (%)',
+                                label: 'Preenchimento (%)',
                                 data: top5.map(s => s.percentagem),
                                 backgroundColor: 'rgba(79, 70, 229, 0.7)',
                                 borderColor: 'rgba(79, 70, 229, 1)',
