@@ -6,9 +6,25 @@
     <title>Gráfico de Atividades por Setor</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f4f5f7; }
-        .chart-container { width: 80%; max-width: 600px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        #debug-box { margin-top: 15px; width: 80%; max-width: 600px; background: #e2f0d9; padding: 10px; border: 1px solid #c8e1b7; font-size: 12px; border-radius: 5px; max-height: 100px; overflow-y: auto; }
+        body { 
+            font-family: sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            background-color: #ffffff; 
+        }
+        .chart-container { 
+            width: 100%; 
+            max-width: 450px; 
+            max-height: 350px;
+            padding: 10px; 
+        }
+        canvas {
+            max-height: 300px !important;
+        }
     </style>
 </head>
 <body>
@@ -16,9 +32,6 @@
     <div class="chart-container">
         <canvas id="meuGrafico"></canvas> 
     </div>
-    
-    <!-- Caixa de depuração para validação -->
-    <div id="debug-box">A processar dados...</div>
 
     <script>
         const TOKEN = '7IIBS4AieOeEcmfWNF35znNX7wqR6O5d'; 
@@ -26,11 +39,14 @@
         const NOME_COLUNA_TIPO = 'Tipo'; 
         const NOME_COLUNA_SETOR = 'Setores'; 
 
+        // Captura o setor que vem na URL
         const urlParams = new URLSearchParams(window.location.search);
-        const setorFiltro = urlParams.get('setor');
-        const debugBox = document.getElementById('debug-box');
+        let setorFiltro = urlParams.get('setor');
 
-        let logsDebug = `Filtro aplicado na URL: "${setorFiltro}"<br>`;
+        // Se por acaso vier literal ou vazio do Baserow, trata como nulo
+        if (!setorFiltro || setorFiltro.includes('{{')) {
+            setorFiltro = null;
+        }
 
         async function carregarDados() {
             const url = `http://baserow.app.local/api/database/rows/table/${TABLE_ID}/?user_field_names=true&size=200`;
@@ -50,12 +66,9 @@
                     'Grupo/Comissão': 0
                 };
 
-                let totalFiltradas = 0;
-
                 atividades.forEach((atividade) => {
                     let setorAtividade = atividade[NOME_COLUNA_SETOR];
 
-                    // Se houver um filtro na URL, valida se o setor bate certo (por ID ou por Nome/Value)
                     if (setorFiltro) {
                         let pertenceAoSetor = false;
 
@@ -76,13 +89,10 @@
                         }
 
                         if (!pertenceAoSetor) {
-                            return; // Ignora se não pertencer ao setor filtrado
+                            return; 
                         }
                     }
 
-                    totalFiltradas++;
-
-                    // Processa a categoria da atividade
                     let campoBruto = atividade[NOME_COLUNA_TIPO];
                     let categoria = null;
 
@@ -97,14 +107,10 @@
                     if (categoria === 'Grupo/Comissão') contadores['Grupo/Comissão']++;
                 });
 
-                logsDebug += `Atividades encontradas após o filtro: ${totalFiltradas}`;
-                debugBox.innerHTML = logsDebug;
-
                 desenharGrafico(contadores, setorFiltro);
 
             } catch (erro) {
                 console.error("Erro ao carregar dados do Baserow:", erro);
-                debugBox.innerHTML = "Erro ao carregar dados: " + erro;
             }
         }
 
@@ -116,7 +122,7 @@
                 data: {
                     labels: ['Intersetorial', 'Setorial', 'Grupos e Comissões'],
                     datasets: [{
-                        label: 'Quantidade de Atividades',
+                        label: 'Qtd',
                         data: [contadores['Intersetorial'], contadores['Setorial'], contadores['Grupo/Comissão']],
                         backgroundColor: [
                             'rgba(255, 99, 132, 0.7)', 
@@ -128,10 +134,11 @@
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     plugins: {
                         title: {
                             display: true,
-                            text: tituloSetor ? `Atividades do Setor: ${tituloSetor}` : 'Todas as Atividades'
+                            text: tituloSetor ? `Atividades: ${tituloSetor}` : 'Todas as Atividades'
                         }
                     }
                 }
