@@ -22,15 +22,15 @@
             max-width: 450px;
             text-align: center;
         }
-        #erro-box {
-            font-size: 11px;
-            color: #d9534f;
-            background: #fdf7f7;
-            border: 1px solid #ebccd1;
-            padding: 8px;
-            border-radius: 4px;
-            margin-bottom: 5px;
+        #aviso-box {
+            font-size: 12px;
+            color: #856404;
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            padding: 10px;
+            border-radius: 6px;
             text-align: left;
+            line-height: 1.4;
         }
         #posicao-box {
             background: #f8f9fa;
@@ -68,7 +68,7 @@
 <body>
 
     <div class="container" id="main-container">
-        <div id="conteudo">A carregar dados do ranking...</div>
+        <div id="conteudo">A carregar dados...</div>
     </div>
 
     <script>
@@ -76,9 +76,7 @@
         const TABLE_ID = '1004'; 
         const NOME_COLUNA_SETOR = 'Setores'; 
         const NOME_COLUNA_STATUS = 'Atividade completa'; 
-        
-        // Nome exato da coluna que identifica as atividades setoriais na sua tabela
-        const NOME_COLUNA_CATEGORIA = 'Atividades setoriais'; // Mude para 'Atividades grupos' quando fizer a página dos grupos
+        const NOME_COLUNA_CATEGORIA = 'Atividade Setorial'; // Fórmula que dá 1 se for setorial, 0 se não for
 
         const urlParams = new URLSearchParams(window.location.search);
         let setorFiltro = urlParams.get('setor') || urlParams.get('id') || urlParams.get('nome');
@@ -105,29 +103,19 @@
                 const atividades = dados.results;
 
                 if (!atividades || atividades.length === 0) {
-                    container.innerHTML = `<div id="erro-box">Aviso: A tabela 1004 retornou 0 registos.</div>`;
+                    container.innerHTML = `<div id="aviso-box">Aviso: A tabela 1004 devolveu 0 registos.</div>`;
                     return;
                 }
 
                 let setoresMap = {};
 
                 atividades.forEach((atividade) => {
-                    // Verifica se a atividade pertence à categoria desejada (ex: tem valor preenchido na coluna setorial)
-                    let valorCategoria = atividade[NOME_COLUNA_CATEGORIA];
-                    let pertenceCategoria = false;
-
-                    if (Array.isArray(valorCategoria)) {
-                        pertenceCategoria = valorCategoria.length > 0;
-                    } else if (valorCategoria !== null && valorCategoria !== undefined && valorCategoria !== '' && valorCategoria !== 0) {
-                        pertenceCategoria = true;
+                    // Filtra estritamente utilizando a coluna de fórmula (1 = setorial, 0 = outro)
+                    let ehSetorial = Number(atividade[NOME_COLUNA_CATEGORIA]) || 0;
+                    if (ehSetorial !== 1) {
+                        return; // Ignora se não for setorial
                     }
 
-                    // Se não pertencer à categoria setorial, ignora
-                    if (!pertenceCategoria) {
-                        return;
-                    }
-
-                    // Identifica o setor da atividade
                     let setorAtividade = atividade[NOME_COLUNA_SETOR];
                     let nomeSetor = "Sem Setor";
 
@@ -142,7 +130,6 @@
                         setoresMap[nomeSetor] = { soma: 0, total: 0 };
                     }
 
-                    // Lê o valor 1 ou 0 da coluna "Atividade completa"
                     let statusConclusao = Number(atividade[NOME_COLUNA_STATUS]) || 0;
                     
                     setoresMap[nomeSetor].soma += statusConclusao;
@@ -157,7 +144,7 @@
 
                 rankingArray.sort((a, b) => b.percentagem - a.percentagem);
 
-                // CASO 1: Página de detalhes (mostra a posição isolada do setor)
+                // CASO 1: Setor específico via URL (Mostra a posição)
                 if (setorFiltro) {
                     let index = rankingArray.findIndex(s => s.nome.toLowerCase() === setorFiltro.toLowerCase() || s.nome.toLowerCase().includes(setorFiltro.toLowerCase()));
                     let posicao = index !== -1 ? `${index + 1}º` : "Não classificado";
@@ -170,8 +157,13 @@
                         </div>
                     `;
                 } 
-                // CASO 2: Dashboard Geral (mostra o Top 5)
+                // CASO 2: Dashboard Geral (Mostra o Top 5)
                 else {
+                    if (rankingArray.length === 0) {
+                        container.innerHTML = `<div id="aviso-box">Nenhum setor encontrado com atividades setoriais.</div>`;
+                        return;
+                    }
+
                     let top5 = rankingArray.slice(0, 5);
                     
                     container.innerHTML = `
@@ -186,7 +178,7 @@
                         data: {
                             labels: top5.map(s => s.nome),
                             datasets: [{
-                                label: 'Preenchimento (%)',
+                                label: 'Preenchimento Setorial (%)',
                                 data: top5.map(s => s.percentagem),
                                 backgroundColor: 'rgba(79, 70, 229, 0.7)',
                                 borderColor: 'rgba(79, 70, 229, 1)',
@@ -218,7 +210,7 @@
 
             } catch (erro) {
                 console.error("Erro no script:", erro);
-                container.innerHTML = `<div id="erro-box"><b>Erro de Ligação:</b><br>${erro.message}</div>`;
+                container.innerHTML = `<div id="aviso-box"><b>Erro:</b> ${erro.message}</div>`;
             }
         }
 
