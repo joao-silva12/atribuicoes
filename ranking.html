@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking de Preenchimento</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 10px; 
+            background-color: #ffffff; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+        }
+        #posicao-box {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .setor-nome {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .posicao-texto {
+            font-size: 14px;
+            color: #555;
+        }
+        .posicao-numero {
+            font-size: 22px;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-height: 280px;
+        }
+        canvas {
+            max-height: 250px !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="main-container">
+        <div id="conteudo">A carregar ranking...</div>
+    </div>
+
+    <script>
+        const TOKEN = '7IIBS4AieOeEcmfWNF35znNX7wqR6O5d'; 
+        const TABLE_ID = '1004'; 
+        const NOME_COLUNA_SETOR = 'Setores'; 
+        const NOME_COLUNA_STATUS = 'Atividade completa'; // Ajuste aqui se o nome exato da coluna na tabela for ligeiramente diferente
+
+        const urlParams = new URLSearchParams(window.location.search);
+        let setorFiltro = urlParams.get('setor') || urlParams.get('id') || urlParams.get('nome');
+
+        if (!setorFiltro || setorFiltro.includes('{{') || setorFiltro.trim() === '') {
+            setorFiltro = null;
+        }
+
+        async function carregarRanking() {
+            const url = `http://baserow.app.local/api/database/rows/table/${TABLE_ID}/?user_field_names=true&size=200`;
+
+            try {
+                const resposta = await fetch(url, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Token ${TOKEN}` }
+                });
+                
+                const dados = await resposta.json();
+                const atividades = dados.results;
+
+                let setoresMap = {};
+
+                atividades.forEach((atividade) => {
+                    let setorAtividade = atividade[NOME_COLUNA_SETOR];
+                    let nomeSetor = "Sem Setor";
+
+                    if (Array.isArray(setorAtividade) && setorAtividade.length > 0) {
+                        let s = setorAtividade[0];
+                        nomeSetor = (typeof s === 'object' && s !== null) ? (s.value || s.name || "Desconhecido") : String(s);
+                    } else if (setorAtividade) {
+                        nomeSetor = String(setorAtividade);
+                    }
+
+                    if (!setoresMap[nomeSetor]) {
+                        setoresMap[nomeSetor] = { soma: 0, total: 0 };
+                    }
+
+                    // Pega o valor 1 ou 0 da coluna de conclusão
+                    let statusConclusao = Number(atividade[NOME_COLUNA_STATUS]) || 0;
+                    
+                    setoresMap[nomeSetor].soma += statusConclusao;
+                    setoresMap[nomeSetor].total++;
+                });
+
+                // Calcula a média em percentagem para cada setor (igual ao rollup do Baserow)
+                let rankingArray = Object.keys(setoresMap).map(nome => {
+                    let info = setoresMap[nome];
+                    let media = info.total > 0 ? (info.soma / info.total) * 100 : 0;
+                    return { nome: nome, percentagem: parseFloat(media.toFixed(1)) };
+                });
+
+                // Ordena do maior para o menor preenchimento
+                rankingArray.sort((a, b) => b.percentagem - a.percentagem);
+
+                const container = document.getElementById('main-container');
+
+                // CASO 1: Página de detalhes do setor (com parâmetro na URL) -> Mostra a posição no ranking
+                if (setorFiltro) {
+                    let index = rankingArray.findIndex(s => s.nome.toLowerCase() === setorFiltro.toLowerCase() || s.nome.toLowerCase().includes(setorFiltro.toLowerCase()));
+                    let posicao = index !== -1 ? `${index + 1}º` : "Não classificado";
+                    let nomeExibicao = index !== -1 ? rankingArray[index].nome : setorFiltro;
+
+                    container.innerHTML = `
+                        <div id="posicao-box">
+                            <div class="setor-nome">${nomeExibicao}</div>
+                            <div class="posicao-texto">Posição no ranking de preenchimento: <span class="posicao-numero">${posicao}</span></div>
+                        </div>
+                    `;
+                } 
+                // CASO 2: Página principal (sem parâmetro) -> Mostra o Top 5 em gráfico de barras
+                else {
+                    let top5 = rankingArray.slice(0, 5);
+                    
+                    container.innerHTML = `
+                        <div class="chart-container">
+                            <canvas id="rankingChart"></canvas>
+                        </div>
+                    `;
+
+                    const ctx = document.getElementById('rankingChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: top5.map(s => s.nome),
+                            datasets: [{
+                                label: 'Preenchimento (%)',
+                                data: top5.map(s => s.percentagem),
+                                backgroundColor: 'rgba(79, 70, 229, 0.7)',
+                                borderColor: 'rgba(79, 70, 229, 1)',
+                                borderWidth: 1,
+                                borderRadius: 4
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                title: { 
+                                    display: true, 
+                                    text: 'Top 5 - Ranking de Preenchimento',
+                                    font: { size: 14 }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    beginAtZero: true,
+                                    max: 100
+                                }
+                            }
+                        }
+                    });
+                }
+
+            } catch (erro) {
+                console.error("Erro ao carregar ranking:", erro);
+                document.getElementById('main-container').innerText = "Erro ao carregar dados do ranking.";
+            }
+        }
+
+        carregarRanking();
+    </script>
+</body>
+</html>
