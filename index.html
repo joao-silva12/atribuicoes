@@ -46,18 +46,19 @@
         const NOME_COLUNA_TIPO = 'Tipo'; 
         const NOME_COLUNA_SETOR = 'Setores'; 
 
-        // Lê todos os parâmetros passados na URL
+        // Lê todos os parâmetros possíveis da URL
         const urlParams = new URLSearchParams(window.location.search);
         let setorFiltro = urlParams.get('setor') || urlParams.get('id') || urlParams.get('nome');
 
-        console.log("URL completa acedida:", window.location.href);
-        console.log("Parâmetro 'setor' detetado:", setorFiltro);
-
+        // Se o parâmetro veio vazio ou com as chaves literais do Baserow
         if (!setorFiltro || setorFiltro.includes('{{') || setorFiltro.trim() === '') {
             setorFiltro = null;
-            document.getElementById('info-setorinnerText = "Filtro: Nenhum parâmetro recebido"';
-        } else {
+        }
+
+        if (setorFiltro) {
             document.getElementById('info-setor').innerText = `Setor Filtrado: ${setorFiltro}`;
+        } else {
+            document.getElementById('info-setor').innerText = `A mostrar todas as atividades (Sem filtro)`;
         }
 
         async function carregarDados() {
