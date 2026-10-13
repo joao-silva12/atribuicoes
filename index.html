@@ -16,12 +16,6 @@
             margin: 0; 
             background-color: #ffffff; 
         }
-        #info-setor {
-            font-size: 12px;
-            color: #333;
-            margin-bottom: 4px;
-            font-weight: bold;
-        }
         .chart-container { 
             width: 100%; 
             max-width: 430px; 
@@ -35,7 +29,6 @@
 </head>
 <body>
 
-    <div id="info-setor">A carregar setor...</div>
     <div class="chart-container">
         <canvas id="meuGrafico"></canvas> 
     </div>
@@ -65,14 +58,11 @@
                 const dados = await resposta.json();
                 const atividades = dados.results;
 
-                let nomeSetorReal = setorFiltro;
                 let contadores = {
                     'Intersetorial': 0,
                     'Setorial': 0,
                     'Grupo/Comissão': 0
                 };
-
-                let itensEncontrados = 0;
 
                 atividades.forEach((atividade) => {
                     let setorAtividade = atividade[NOME_COLUNA_SETOR];
@@ -86,18 +76,13 @@
                                     let valItem = String(s.value || s.name || '').trim();
                                     let filtroTrim = String(setorFiltro).trim();
                                     
-                                    if (idItem === filtroTrim || valItem.toLowerCase() === filtroTrim.toLowerCase()) {
-                                        // Captura o nome bonito diretamente do objeto do Baserow!
-                                        if (valItem) nomeSetorReal = valItem;
-                                        return true;
-                                    }
+                                    return idItem === filtroTrim || valItem.toLowerCase() === filtroTrim.toLowerCase();
                                 }
                                 return String(s).trim().toLowerCase() === String(setorFiltro).trim().toLowerCase();
                             });
                         } else if (setorAtividade !== null && setorAtividade !== undefined) {
                             let textoLookup = String(setorAtividade).trim();
                             if (textoLookup.toLowerCase().includes(String(setorFiltro).trim().toLowerCase())) {
-                                nomeSetorReal = textoLookup;
                                 pertenceAoSetor = true;
                             }
                         }
@@ -106,8 +91,6 @@
                             return; 
                         }
                     }
-
-                    itensEncontrados++;
 
                     let campoBruto = atividade[NOME_COLUNA_TIPO];
                     let categoria = null;
@@ -123,17 +106,10 @@
                     if (categoria === 'Grupo/Comissão') contadores['Grupo/Comissão']++;
                 });
 
-                if (setorFiltro) {
-                    document.getElementById('info-setor').innerText = `Setor: ${nomeSetorReal} (${itensEncontrados} atividades)`;
-                } else {
-                    document.getElementById('info-setor').innerText = `Todas as Atividades (${itensEncontrados} total)`;
-                }
-
                 desenharGrafico(contadores);
 
             } catch (erro) {
                 console.error("Erro ao carregar dados do Baserow:", erro);
-                document.getElementById('info-setor').innerText = "Erro ao carregar dados.";
             }
         }
 
