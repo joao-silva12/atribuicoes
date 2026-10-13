@@ -29,30 +29,15 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.06);
             box-sizing: border-box;
         }
-        .card-left {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-        }
         .setor-nome {
             font-size: 15px;
             font-weight: 800;
             color: #333;
             text-transform: uppercase;
-            margin-bottom: 2px;
-        }
-        .posicao-texto {
-            font-size: 12px;
-            color: #7f8c8d;
         }
         .posicao-numero {
             font-weight: bold;
             color: #17B8A6;
-        }
-        .card-right {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
         }
         .mini-bar {
             background-color: #17B8A6;
@@ -62,55 +47,21 @@
             text-align: center;
             padding: 8px 15px;
             border-radius: 4px;
-            position: relative;
-            cursor: pointer;
-            min-width: 60px;
-            box-shadow: inset 0px -2px 0px rgba(0,0,0,0.1);
         }
-        .mini-bar .tooltip-texto {
-            visibility: hidden;
-            width: 160px;
-            background-color: #2c3e50;
-            color: #fff;
-            text-align: center;
-            border-radius: 6px;
-            padding: 6px 8px;
-            position: absolute;
-            z-index: 10;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -80px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 13px;
-            font-weight: normal;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            pointer-events: none;
-        }
-        .mini-bar .tooltip-texto::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: #2c3e50 transparent transparent transparent;
-        }
-        .mini-bar:hover .tooltip-texto {
-            visibility: visible;
-            opacity: 1;
-        }
-        .total-atribuicoes {
-            font-size: 11px;
-            color: #95a5a6;
-            margin-top: 3px;
+        .debug-msg {
+            font-size: 12px;
+            color: #e74c3c;
+            background: #fadbd8;
+            padding: 8px;
+            border-radius: 4px;
         }
     </style>
 </head>
 <body>
 
-    <div id="conteudo" style="width: 100%; display: flex; justify-content: center;"></div>
+    <div id="conteudo" style="width: 100%; display: flex; justify-content: center;">
+        <span style="font-size: 12px; color: #888;">A aguardar parâmetros...</span>
+    </div>
 
     <script>
         const TOKEN = '7IIBS4AieOeEcmfWNF35znNX7wqR6O5d';
@@ -120,6 +71,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         let setorFiltro = urlParams.get('setor') || urlParams.get('id') || urlParams.get('nome');
 
+        // Se quiser testar direto no browser para ver se funciona, remova temporariamente esta linha de verificação
         if (!setorFiltro || setorFiltro.includes('{{') || setorFiltro.trim() === '') {
             setorFiltro = null;
         }
@@ -139,11 +91,13 @@
             const container = document.getElementById('conteudo');
 
             if (!setorFiltro) {
-                container.innerHTML = '';
+                container.innerHTML = `<div class="debug-msg">Aviso: Nenhum setor passado na URL. (Teste abrir no browser com ?setor=NOME)</div>`;
                 return;
             }
 
             try {
+                container.innerHTML = `<span style="font-size: 12px; color: #666;">A carregar dados para "${setorFiltro}"...</span>`;
+                
                 const url = `http://baserow.app.local/api/database/rows/table/${TABLE_ID}/?user_field_names=true&size=200`;
                 
                 const resposta = await fetch(url, {
@@ -156,7 +110,10 @@
                 const dados = await resposta.json();
                 const atribuicoes = dados.results;
 
-                if (!atribuicoes || atribuicoes.length === 0) return;
+                if (!atribuicoes || atribuicoes.length === 0) {
+                    container.innerHTML = `<div class="debug-msg">Tabela vazia.</div>`;
+                    return;
+                }
 
                 let setoresMap = {};
 
@@ -209,7 +166,7 @@
                 let index = rankingArray.findIndex(s => s.nome.toLowerCase() === setorFiltro.toLowerCase() || s.nome.toLowerCase().includes(setorFiltro.toLowerCase()));
                 
                 if (index === -1) {
-                    container.innerHTML = '';
+                    container.innerHTML = `<div class="debug-msg">Setor "${setorFiltro}" não encontrado nos dados.</div>`;
                     return;
                 }
 
@@ -218,22 +175,19 @@
 
                 container.innerHTML = `
                     <div class="card-container">
-                        <div class="card-left">
+                        <div style="display: flex; flex-direction: column;">
                             <div class="setor-nome">${setorInfo.nome}</div>
-                            <div class="posicao-texto">Posição no ranking: <span class="posicao-numero">${posicaoOrdinal}</span></div>
+                            <div style="font-size: 12px; color: #7f8c8d;">Posição: <span class="posicao-numero">${posicaoOrdinal}</span></div>
                         </div>
-                        <div class="card-right">
-                            <div class="mini-bar">
-                                ${setorInfo.percentagem}%
-                                <span class="tooltip-texto">Concluídas: ${setorInfo.completas}/${setorInfo.total}</span>
-                            </div>
-                            <div class="total-atribuicoes">${setorInfo.total} atribuições</div>
+                        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                            <div class="mini-bar">${setorInfo.percentagem}%</div>
+                            <div style="font-size: 11px; color: #95a5a6; margin-top: 3px;">${setorInfo.total} atribuições</div>
                         </div>
                     </div>
                 `;
 
             } catch (erro) {
-                container.innerHTML = '';
+                container.innerHTML = `<div class="debug-msg">Erro: ${erro.message}</div>`;
             }
         }
 
