@@ -18,23 +18,24 @@
         }
         #info-setor {
             font-size: 11px;
-            color: #666;
-            margin-bottom: 5px;
+            color: #333;
+            margin-bottom: 2px;
+            font-weight: bold;
         }
         .chart-container { 
             width: 100%; 
-            max-width: 450px; 
-            max-height: 330px;
-            padding: 5px; 
+            max-width: 430px; 
+            max-height: 310px;
+            padding: 2px; 
         }
         canvas {
-            max-height: 280px !important;
+            max-height: 270px !important;
         }
     </style>
 </head>
 <body>
 
-    <div id="info-setor">A carregar setor...</div>
+    <div id="info-setor">A carregar...</div>
     <div class="chart-container">
         <canvas id="meuGrafico"></canvas> 
     </div>
@@ -45,16 +46,18 @@
         const NOME_COLUNA_TIPO = 'Tipo'; 
         const NOME_COLUNA_SETOR = 'Setores'; 
 
-        // Captura o setor que vem na URL
+        // Lê todos os parâmetros passados na URL
         const urlParams = new URLSearchParams(window.location.search);
-        let setorFiltro = urlParams.get('setor');
+        let setorFiltro = urlParams.get('setor') || urlParams.get('id') || urlParams.get('nome');
 
-        // Valida se o parâmetro veio vazio ou com tags mal formadas
+        console.log("URL completa acedida:", window.location.href);
+        console.log("Parâmetro 'setor' detetado:", setorFiltro);
+
         if (!setorFiltro || setorFiltro.includes('{{') || setorFiltro.trim() === '') {
             setorFiltro = null;
-            document.getElementById('info-setor').innerText = "Filtro: Nenhum setor recebido na URL (Mostrando tudo)";
+            document.getElementById('info-setorinnerText = "Filtro: Nenhum parâmetro recebido"';
         } else {
-            document.getElementById('info-setor').innerText = `Filtro ativo para o setor: "${setorFiltro}"`;
+            document.getElementById('info-setor').innerText = `Setor Filtrado: ${setorFiltro}`;
         }
 
         async function carregarDados() {
@@ -121,18 +124,20 @@
                 });
 
                 if (setorFiltro) {
-                    document.getElementById('info-setor').innerText = `Setor: "${setorFiltro}" (${itensEncontrados} atividades encontradas)`;
+                    document.getElementById('info-setor').innerText = `Setor: ${setorFiltro} (${itensEncontrados} atividades)`;
+                } else {
+                    document.getElementById('info-setor').innerText = `Todas as Atividades (${itensEncontrados} total)`;
                 }
 
-                desenharGrafico(contadores, setorFiltro);
+                desenharGrafico(contadores);
 
             } catch (erro) {
                 console.error("Erro ao carregar dados do Baserow:", erro);
-                document.getElementById('info-setor').innerText = "Erro ao carregar dados da API.";
+                document.getElementById('info-setor').innerText = "Erro ao carregar dados.";
             }
         }
 
-        function desenharGrafico(contadores, tituloSetor) {
+        function desenharGrafico(contadores) {
             const ctx = document.getElementById('meuGrafico').getContext('2d');
             
             new Chart(ctx, {
@@ -154,9 +159,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        title: {
-                            display: false
-                        }
+                        title: { display: false }
                     }
                 }
             });
