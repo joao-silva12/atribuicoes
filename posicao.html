@@ -21,12 +21,12 @@
             align-items: center;
             justify-content: space-between;
             background: #ffffff;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 12px 20px;
+            border: 1px solid #dcdfe6;
+            border-radius: 12px;
+            padding: 20px 28px;
             width: 100%;
-            max-width: 450px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            max-width: 520px;
+            box-shadow: 0 6px 14px rgba(0,0,0,0.08);
             box-sizing: border-box;
         }
         .card-left {
@@ -35,19 +35,20 @@
             align-items: flex-start;
         }
         .setor-nome {
-            font-size: 15px;
+            font-size: 19px;
             font-weight: 800;
-            color: #333;
+            color: #2c3e50;
             text-transform: uppercase;
-            margin-bottom: 2px;
+            margin-bottom: 6px;
         }
         .posicao-texto {
-            font-size: 12px;
+            font-size: 15px;
             color: #7f8c8d;
         }
         .posicao-numero {
             font-weight: bold;
             color: #17B8A6;
+            font-size: 16px;
         }
         .card-right {
             display: flex;
@@ -58,31 +59,31 @@
             background-color: #17B8A6;
             color: white;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 18px;
             text-align: center;
-            padding: 8px 15px;
-            border-radius: 4px;
+            padding: 12px 22px;
+            border-radius: 8px;
             position: relative;
             cursor: pointer;
-            min-width: 60px;
-            box-shadow: inset 0px -2px 0px rgba(0,0,0,0.1);
+            min-width: 80px;
+            box-shadow: inset 0px -3px 0px rgba(0,0,0,0.15);
         }
         .mini-bar .tooltip-texto {
             visibility: hidden;
-            width: 160px;
+            width: 190px;
             background-color: #2c3e50;
             color: #fff;
             text-align: center;
             border-radius: 6px;
-            padding: 6px 8px;
+            padding: 10px 12px;
             position: absolute;
             z-index: 10;
             bottom: 125%;
             left: 50%;
-            margin-left: -80px;
+            margin-left: -95px;
             opacity: 0;
             transition: opacity 0.3s;
-            font-size: 13px;
+            font-size: 15px;
             font-weight: normal;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             pointer-events: none;
@@ -92,8 +93,8 @@
             position: absolute;
             top: 100%;
             left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
+            margin-left: -6px;
+            border-width: 6px;
             border-style: solid;
             border-color: #2c3e50 transparent transparent transparent;
         }
@@ -102,22 +103,24 @@
             opacity: 1;
         }
         .total-atribuicoes {
-            font-size: 11px;
+            font-size: 14px;
             color: #95a5a6;
-            margin-top: 3px;
+            margin-top: 6px;
+            font-weight: 500;
         }
         .aviso-vazio {
-            font-size: 13px;
+            font-size: 15px;
             color: #7f8c8d;
             background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            padding: 12px 20px;
-            border-radius: 8px;
+            border: 1px solid #dcdfe6;
+            padding: 20px 28px;
+            border-radius: 12px;
             text-align: center;
             width: 100%;
-            max-width: 450px;
+            max-width: 520px;
             font-weight: bold;
             box-sizing: border-box;
+            box-shadow: 0 6px 14px rgba(0,0,0,0.04);
         }
     </style>
 </head>
@@ -136,7 +139,7 @@
         if (!setorFiltro || setorFiltro.includes('{{') || setorFiltro.trim() === '') {
             setorFiltro = null;
         } else {
-            setorFiltro = setorFiltro.trim().toLowerCase();
+            setorFiltro = setorFiltro.trim();
         }
 
         function extrairValor(val) {
@@ -150,11 +153,29 @@
             return val;
         }
 
+        function analisarSetor(valSetor) {
+            let nomeSetor = "Sem Setor";
+            let idSetor = null;
+
+            if (valSetor !== undefined && valSetor !== null) {
+                if (Array.isArray(valSetor) && valSetor.length > 0) {
+                    nomeSetor = String(valSetor[0].value || valSetor[0].name || valSetor[0]);
+                    idSetor = valSetor[0].id !== undefined ? String(valSetor[0].id) : null;
+                } else if (typeof valSetor === 'object') {
+                    nomeSetor = String(valSetor.value || valSetor.name || valSetor);
+                    idSetor = valSetor.id !== undefined ? String(valSetor.id) : null;
+                } else {
+                    nomeSetor = String(valSetor);
+                }
+            }
+            return { nome: nomeSetor, id: idSetor };
+        }
+
         async function carregarSetorIndividual() {
             const container = document.getElementById('conteudo');
 
             if (!setorFiltro) {
-                container.innerHTML = '';
+                container.innerHTML = `<div class="aviso-vazio">Nenhum setor especificado na URL</div>`;
                 return;
             }
 
@@ -171,9 +192,26 @@
                 const dados = await resposta.json();
                 const atribuicoes = dados.results;
 
-                if (!atribuicoes || atribuicoes.length === 0) return;
+                if (!atribuicoes || atribuicoes.length === 0) {
+                    container.innerHTML = `<div class="aviso-vazio">Sem dados na tabela</div>`;
+                    return;
+                }
 
+                let nomeSetorAlvoReal = null;
                 let setoresMap = {};
+
+                atribuicoes.forEach((atribuicao) => {
+                    if (!atribuicao) return;
+                    let chaves = Object.keys(atribuicao);
+                    let chaveSetor = chaves.find(k => k.toLowerCase() === COLUNA_NOME_SETOR.toLowerCase()) || COLUNA_NOME_SETOR;
+                    
+                    let info = analisarSetor(atribuicao[chaveSetor]);
+                    if (info.nome === "Sem Setor" || info.nome === "0") return;
+
+                    if (info.id === setorFiltro || info.nome.toLowerCase() === setorFiltro.toLowerCase() || info.nome.toLowerCase().includes(setorFiltro.toLowerCase())) {
+                        nomeSetorAlvoReal = info.nome;
+                    }
+                });
 
                 atribuicoes.forEach((atribuicao) => {
                     if (!atribuicao) return;
@@ -186,28 +224,16 @@
                     let ehSetorial = Number(extrairValor(atribuicao[chaveCategoria])) || 0;
                     if (ehSetorial !== 1) return;
 
-                    let valSetor = atribuicao[chaveSetor];
-                    let nomeSetor = "Sem Setor";
+                    let info = analisarSetor(atribuicao[chaveSetor]);
+                    if (info.nome === "Sem Setor" || info.nome === "0") return;
 
-                    if (valSetor !== undefined && valSetor !== null) {
-                        if (Array.isArray(valSetor) && valSetor.length > 0) {
-                            nomeSetor = String(valSetor[0].value || valSetor[0].name || valSetor[0]);
-                        } else if (typeof valSetor === 'object') {
-                            nomeSetor = String(valSetor.value || valSetor.name || valSetor);
-                        } else {
-                            nomeSetor = String(valSetor);
-                        }
-                    }
-
-                    if (nomeSetor === "Sem Setor" || nomeSetor === "0") return;
-
-                    if (!setoresMap[nomeSetor]) {
-                        setoresMap[nomeSetor] = { soma: 0, total: 0 };
+                    if (!setoresMap[info.nome]) {
+                        setoresMap[info.nome] = { soma: 0, total: 0 };
                     }
 
                     let statusConclusao = Number(extrairValor(atribuicao[chaveStatus])) || 0;
-                    setoresMap[nomeSetor].soma += statusConclusao; 
-                    setoresMap[nomeSetor].total++; 
+                    setoresMap[info.nome].soma += statusConclusao; 
+                    setoresMap[info.nome].total++; 
                 });
 
                 let rankingArray = Object.keys(setoresMap).map(nome => {
@@ -215,7 +241,6 @@
                     let media = info.total > 0 ? (info.soma / info.total) * 100 : 0;
                     return { 
                         nome: nome, 
-                        nomeLower: nome.toLowerCase(),
                         percentagem: Math.round(media), 
                         total: info.total,
                         completas: info.soma 
@@ -224,10 +249,15 @@
 
                 rankingArray.sort((a, b) => b.percentagem - a.percentagem);
 
-                let index = rankingArray.findIndex(s => s.nomeLower === setorFiltro || s.nomeLower.includes(setorFiltro));
+                if (!nomeSetorAlvoReal) {
+                    container.innerHTML = `<div class="aviso-vazio">Setor não encontrado para o parâmetro: ${setorFiltro}</div>`;
+                    return;
+                }
+
+                let index = rankingArray.findIndex(s => s.nome.toLowerCase() === nomeSetorAlvoReal.toLowerCase());
                 
                 if (index === -1) {
-                    container.innerHTML = `<div class="aviso-vazio">Sem atribuições cadastradas para o setor</div>`;
+                    container.innerHTML = `<div class="aviso-vazio">Sem atribuições setoriais cadastradas para ${nomeSetorAlvoReal}</div>`;
                     return;
                 }
 
@@ -251,7 +281,7 @@
                 `;
 
             } catch (erro) {
-                container.innerHTML = '';
+                container.innerHTML = `<div class="aviso-vazio">Erro ao carregar dados</div>`;
             }
         }
 
