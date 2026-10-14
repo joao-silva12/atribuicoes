@@ -180,6 +180,8 @@
             }
 
             try {
+                // Como configurou o Baserow como "single row" filtrando pelo ID, vamos buscar também a tabela de setores se necessário, 
+                // ou mapear diretamente pelo ID interno da relação que vem no campo.
                 const url = `http://baserow.app.local/api/database/rows/table/${TABLE_ID}/?user_field_names=true&size=200`;
                 
                 const resposta = await fetch(url, {
@@ -200,7 +202,7 @@
                 let nomeSetorAlvoReal = null;
                 let setoresMap = {};
 
-                // Passo 1: Encontrar exatamente qual é o nome do setor associado ao ID ou valor passado na URL
+                // Passo 1: Procurar estritamente pelo ID da relação ou correspondência exata do nome
                 atribuicoes.forEach((atribuicao) => {
                     if (!atribuicao) return;
                     let chaves = Object.keys(atribuicao);
@@ -209,13 +211,31 @@
                     let info = analisarSetor(atribuicao[chaveSetor]);
                     if (info.nome === "Sem Setor" || info.nome === "0") return;
 
-                    // Verifica se o ID bate certo OU se o nome/texto bate certo
-                    if (info.id === setorFiltro || info.nome.toLowerCase() === setorFiltro.toLowerCase() || info.nome.toLowerCase().includes(setorFiltro.toLowerCase())) {
+                    // Compara rigorosamente o ID (convertido para string) ou o nome exato
+                    if (String(info.id) === String(setorFiltro) || info.nome.toLowerCase() === setorFiltro.toLowerCase()) {
                         nomeSetorAlvoReal = info.nome;
                     }
                 });
 
-                // Passo 2: Construir o ranking geral completo
+                // Se não encontrou por ID exato na tabela 1004, pode ser que o ID venha diretamente da tabela de setores. 
+                // Nesse caso, vamos buscar o nome do setor diretamente à API do Baserow da tabela de setores se o parâmetro for numérico.
+                if (!nomeSetorAlvoReal && !isNaN(setorFiltro)) {
+                    try {
+                        const urlSetor = `http://baserow.app.local/api/database/rows/table/setores/${setorFiltro}/?user_field_names=true`;
+                        const respSetor = await fetch(urlSetor, {
+                            method: 'GET',
+                            headers: { 'Authorization': `Token ${TOKEN}` }
+                        });
+                        if (respSetor.ok) {
+                            const dadosSetor = await respSetor.json();
+                            nomeSetorAlvoReal = dadosSetor.nome || dadosSetor.name || dadosSetor.codigo || null;
+                        }
+                    } catch (e) {
+                        // Ignora se falhar e continua para o ranking
+                    }
+                }
+
+                // Passo 2: Construir o ranking geral completo para calcular posições
                 atribuicoes.forEach((atribuicao) => {
                     if (!atribuicao) return;
                     
@@ -253,15 +273,13 @@
                 rankingArray.sort((a, b) => b.percentagem - a.percentagem);
 
                 if (!nomeSetorAlvoReal) {
-                    container.innerHTML = `<div class="aviso-vazio">Setor não encontrado para o parâmetro: ${setorFiltro}</div>`;
+                    container.innerHTML = `<div class="aviso-vazio">Setor não encontrado para o ID: ${setorFiltro}</div>`;
                     return;
                 }
 
-                // Encontra a posição exata deste setor no ranking ordenado
                 let index = rankingArray.findIndex(s => s.nome.toLowerCase() === nomeSetorAlvoReal.toLowerCase());
                 
                 if (index === -1) {
-                    // Se o setor existe mas tem 0 atividades setoriais contabilizadas no ranking
                     container.innerHTML = `
                         <div class="card-container">
                             <div class="card-left">
