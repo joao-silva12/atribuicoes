@@ -175,7 +175,6 @@
 
                 let setoresMap = {};
 
-                // Processar todas as atribuições setoriais para montar o ranking
                 atribuicoes.forEach((atribuicao) => {
                     if (!atribuicao) return;
                     
@@ -225,7 +224,6 @@
 
                 rankingArray.sort((a, b) => b.percentagem - a.percentagem);
 
-                // Procura o setor correspondente ao parâmetro recebido
                 let index = rankingArray.findIndex(s => s.nomeLower === setorFiltro || s.nomeLower.includes(setorFiltro));
                 
                 if (index === -1) {
