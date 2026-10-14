@@ -197,10 +197,25 @@
                     return;
                 }
 
+                let nomeSetorAlvoReal = null;
                 let setoresMap = {};
-                let todosSetoresEncontrados = new Set();
 
-                // Recolher todos os dados e construir o ranking
+                // Passo 1: Encontrar exatamente qual é o nome do setor associado ao ID ou valor passado na URL
+                atribuicoes.forEach((atribuicao) => {
+                    if (!atribuicao) return;
+                    let chaves = Object.keys(atribuicao);
+                    let chaveSetor = chaves.find(k => k.toLowerCase() === COLUNA_NOME_SETOR.toLowerCase()) || COLUNA_NOME_SETOR;
+                    
+                    let info = analisarSetor(atribuicao[chaveSetor]);
+                    if (info.nome === "Sem Setor" || info.nome === "0") return;
+
+                    // Verifica se o ID bate certo OU se o nome/texto bate certo
+                    if (info.id === setorFiltro || info.nome.toLowerCase() === setorFiltro.toLowerCase() || info.nome.toLowerCase().includes(setorFiltro.toLowerCase())) {
+                        nomeSetorAlvoReal = info.nome;
+                    }
+                });
+
+                // Passo 2: Construir o ranking geral completo
                 atribuicoes.forEach((atribuicao) => {
                     if (!atribuicao) return;
                     
@@ -211,8 +226,6 @@
 
                     let info = analisarSetor(atribuicao[chaveSetor]);
                     if (info.nome === "Sem Setor" || info.nome === "0") return;
-
-                    todosSetoresEncontrados.add(info.nome);
 
                     if (!setoresMap[info.nome]) {
                         setoresMap[info.nome] = { soma: 0, total: 0 };
@@ -239,30 +252,36 @@
 
                 rankingArray.sort((a, b) => b.percentagem - a.percentagem);
 
-                // Adicionar os setores que têm 0 atividades setoriais ao final do ranking para não ficarem de fora
-                todosSetoresEncontrados.forEach(nome => {
-                    if (!rankingArray.some(s => s.nome.toLowerCase() === nome.toLowerCase())) {
-                        rankingArray.push({ nome: nome, percentagem: 0, total: 0, completas: 0 });
-                    }
-                });
-
-                // Tenta encontrar por correspondência exata do ID, nome ou se o parâmetro numérico corresponder à posição/índice ou código
-                let setorInfo = rankingArray.find(s => s.nome.toLowerCase() === setorFiltro.toLowerCase() || s.nome.toLowerCase().includes(setorFiltro.toLowerCase()));
-                
-                if (!setorInfo && !isNaN(setorFiltro)) {
-                    // Se for um número puro (ex: id 7), tenta buscar pelo índice ou assume o elemento correspondente
-                    let indexNum = parseInt(setorFiltro, 10) - 1;
-                    // Se o número corresponder a um código de setor direto ou índice
-                    setorInfo = rankingArray.find(s => s.nome.toLowerCase().startsWith(setorFiltro)) || rankingArray[indexNum];
-                }
-
-                if (!setorInfo) {
+                if (!nomeSetorAlvoReal) {
                     container.innerHTML = `<div class="aviso-vazio">Setor não encontrado para o parâmetro: ${setorFiltro}</div>`;
                     return;
                 }
 
-                let realIndex = rankingArray.findIndex(s => s.nome.toLowerCase() === setorInfo.nome.toLowerCase());
-                let posicaoOrdinal = `${realIndex + 1}º`;
+                // Encontra a posição exata deste setor no ranking ordenado
+                let index = rankingArray.findIndex(s => s.nome.toLowerCase() === nomeSetorAlvoReal.toLowerCase());
+                
+                if (index === -1) {
+                    // Se o setor existe mas tem 0 atividades setoriais contabilizadas no ranking
+                    container.innerHTML = `
+                        <div class="card-container">
+                            <div class="card-left">
+                                <div class="setor-nome">${nomeSetorAlvoReal}</div>
+                                <div class="posicao-texto">Posição no ranking: <span class="posicao-numero">-</span></div>
+                            </div>
+                            <div class="card-right">
+                                <div class="mini-bar">
+                                    0%
+                                    <span class="tooltip-texto">Concluídas: 0/0</span>
+                                </div>
+                                <div class="total-atribuicoes">0 atribuições</div>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let setorInfo = rankingArray[index];
+                let posicaoOrdinal = `${index + 1}º`;
 
                 container.innerHTML = `
                     <div class="card-container">
