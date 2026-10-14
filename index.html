@@ -101,8 +101,8 @@
                         categoria = campoBruto;
                     }
                     
-                    if (categoria === 'Intersetorial') contadores['Intersetorial']++;
                     if (categoria === 'Setorial') contadores['Setorial']++;
+                    if (categoria === 'Intersetorial') contadores['Intersetorial']++;
                     if (categoria === 'Grupo/Comissão') contadores['Grupo/Comissão']++;
                 });
 
@@ -119,14 +119,14 @@
             new Chart(ctx, {
                 type: 'pie',
                 data: {
-                    labels: ['Intersetorial', 'Setorial', 'Grupos e Comissões'],
+                    labels: ['Setorial', 'Intersetorial', 'Grupos e Comissões'],
                     datasets: [{
                         label: 'Qtd',
-                        data: [contadores['Intersetorial'], contadores['Setorial'], contadores['Grupo/Comissão']],
+                        data: [contadores['Setorial'], contadores['Intersetorial'], contadores['Grupo/Comissão']],
                         backgroundColor: [
-                            'rgba(255, 99, 132, 0.7)', 
-                            'rgba(54, 162, 235, 0.7)', 
-                            'rgba(255, 206, 86, 0.7)'  
+                            'rgba(23, 184, 166, 0.7)', /* Verde água */
+                            'rgba(142, 68, 173, 0.7)', /* Roxo */
+                            'rgba(236, 72, 153, 0.7)'  /* Rosa */
                         ],
                         borderWidth: 1
                     }]
