@@ -197,22 +197,10 @@
                     return;
                 }
 
-                let nomeSetorAlvoReal = null;
                 let setoresMap = {};
+                let todosSetoresEncontrados = new Set();
 
-                atribuicoes.forEach((atribuicao) => {
-                    if (!atribuicao) return;
-                    let chaves = Object.keys(atribuicao);
-                    let chaveSetor = chaves.find(k => k.toLowerCase() === COLUNA_NOME_SETOR.toLowerCase()) || COLUNA_NOME_SETOR;
-                    
-                    let info = analisarSetor(atribuicao[chaveSetor]);
-                    if (info.nome === "Sem Setor" || info.nome === "0") return;
-
-                    if (info.id === setorFiltro || info.nome.toLowerCase() === setorFiltro.toLowerCase() || info.nome.toLowerCase().includes(setorFiltro.toLowerCase())) {
-                        nomeSetorAlvoReal = info.nome;
-                    }
-                });
-
+                // Recolher todos os dados e construir o ranking
                 atribuicoes.forEach((atribuicao) => {
                     if (!atribuicao) return;
                     
@@ -221,15 +209,17 @@
                     let chaveStatus = chaves.find(k => k.toLowerCase().includes('completa')) || 'Atividade completa';
                     let chaveSetor = chaves.find(k => k.toLowerCase() === COLUNA_NOME_SETOR.toLowerCase()) || COLUNA_NOME_SETOR;
 
-                    let ehSetorial = Number(extrairValor(atribuicao[chaveCategoria])) || 0;
-                    if (ehSetorial !== 1) return;
-
                     let info = analisarSetor(atribuicao[chaveSetor]);
                     if (info.nome === "Sem Setor" || info.nome === "0") return;
+
+                    todosSetoresEncontrados.add(info.nome);
 
                     if (!setoresMap[info.nome]) {
                         setoresMap[info.nome] = { soma: 0, total: 0 };
                     }
+
+                    let ehSetorial = Number(extrairValor(atribuicao[chaveCategoria])) || 0;
+                    if (ehSetorial !== 1) return;
 
                     let statusConclusao = Number(extrairValor(atribuicao[chaveStatus])) || 0;
                     setoresMap[info.nome].soma += statusConclusao; 
@@ -249,20 +239,30 @@
 
                 rankingArray.sort((a, b) => b.percentagem - a.percentagem);
 
-                if (!nomeSetorAlvoReal) {
+                // Adicionar os setores que têm 0 atividades setoriais ao final do ranking para não ficarem de fora
+                todosSetoresEncontrados.forEach(nome => {
+                    if (!rankingArray.some(s => s.nome.toLowerCase() === nome.toLowerCase())) {
+                        rankingArray.push({ nome: nome, percentagem: 0, total: 0, completas: 0 });
+                    }
+                });
+
+                // Tenta encontrar por correspondência exata do ID, nome ou se o parâmetro numérico corresponder à posição/índice ou código
+                let setorInfo = rankingArray.find(s => s.nome.toLowerCase() === setorFiltro.toLowerCase() || s.nome.toLowerCase().includes(setorFiltro.toLowerCase()));
+                
+                if (!setorInfo && !isNaN(setorFiltro)) {
+                    // Se for um número puro (ex: id 7), tenta buscar pelo índice ou assume o elemento correspondente
+                    let indexNum = parseInt(setorFiltro, 10) - 1;
+                    // Se o número corresponder a um código de setor direto ou índice
+                    setorInfo = rankingArray.find(s => s.nome.toLowerCase().startsWith(setorFiltro)) || rankingArray[indexNum];
+                }
+
+                if (!setorInfo) {
                     container.innerHTML = `<div class="aviso-vazio">Setor não encontrado para o parâmetro: ${setorFiltro}</div>`;
                     return;
                 }
 
-                let index = rankingArray.findIndex(s => s.nome.toLowerCase() === nomeSetorAlvoReal.toLowerCase());
-                
-                if (index === -1) {
-                    container.innerHTML = `<div class="aviso-vazio">Sem atribuições setoriais cadastradas para ${nomeSetorAlvoReal}</div>`;
-                    return;
-                }
-
-                let setorInfo = rankingArray[index];
-                let posicaoOrdinal = `${index + 1}º`;
+                let realIndex = rankingArray.findIndex(s => s.nome.toLowerCase() === setorInfo.nome.toLowerCase());
+                let posicaoOrdinal = `${realIndex + 1}º`;
 
                 container.innerHTML = `
                     <div class="card-container">
