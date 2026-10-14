@@ -191,18 +191,26 @@
 
                     let valSetor = atribuicao[chaveSetor];
                     let nomeSetor = "Sem Setor";
+                    let idSetor = null;
 
                     if (valSetor !== undefined && valSetor !== null) {
                         if (Array.isArray(valSetor) && valSetor.length > 0) {
                             nomeSetor = String(valSetor[0].value || valSetor[0].name || valSetor[0]);
+                            idSetor = valSetor[0].id !== undefined ? String(valSetor[0].id) : null;
                         } else if (typeof valSetor === 'object') {
                             nomeSetor = String(valSetor.value || valSetor.name || valSetor);
+                            idSetor = valSetor.id !== undefined ? String(valSetor.id) : null;
                         } else {
                             nomeSetor = String(valSetor);
                         }
                     }
 
                     if (nomeSetor === "Sem Setor" || nomeSetor === "0") return;
+
+                    // TRUQUE: Se o ID da linha corresponder ao filtro numérico, transforma o filtro no nome exato!
+                    if (idSetor === setorFiltro) {
+                        setorFiltro = nomeSetor.toLowerCase();
+                    }
 
                     if (!setoresMap[nomeSetor]) {
                         setoresMap[nomeSetor] = { soma: 0, total: 0 };
@@ -230,7 +238,7 @@
                 let index = rankingArray.findIndex(s => s.nomeLower === setorFiltro || s.nomeLower.includes(setorFiltro));
                 
                 if (index === -1) {
-                    container.innerHTML = `<div class="aviso-vazio">Sem atribuições cadastradas para o setor</div>`;
+                    container.innerHTML = `<div class="aviso-vazio">Sem atribuições setoriais cadastradas para o setor</div>`;
                     return;
                 }
 
